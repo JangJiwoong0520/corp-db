@@ -1,0 +1,108 @@
+"""가상 DART로 전체 흐름 확인 (네트워크 사용 안 함, 가상 회사만)."""
+
+import datetime as dt
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "collector"))
+
+import build  # noqa: E402
+from dart import BudgetExceeded  # noqa: E402
+
+TODAY = dt.date(2026, 11, 17)
+
+
+class FakeDart:
+    def __init__(self, n=1200, budget=10**6):
+        self.calls = 0
+        self.budget = budget
+        self.n = n
+
+    def tick(self):
+        self.calls += 1
+        if self.calls > self.budget:
+            raise BudgetExceeded()
+
+    def search(self, a, b, **p):
+        self.tick()
+        if p.get("pblntf_ty") == "A":
+            if p.get("corp_cls") != "K":
+                return []
+            return [{"corp_code": f"9{i:07d}", "corp_name": f"가상기업{i}", "stock_code": f"{i:06d}", "corp_cls": "K"} for i in range(self.n)]
+        if p.get("pblntf_ty") == "B":
+            return [{"rcept_no": "20260101000001", "corp_code": "90000001", "rcept_dt": "20260101", "report_nm": "주요사항보고서(전환사채권발행결정)"}]
+        if p.get("pblntf_ty") == "C":
+            return [{"corp_code": "80000001", "corp_name": "가상공모", "rcept_dt": "20261101"}]
+        return []
+
+    def rows(self, path, **p):
+        self.tick()
+        if path == "fnlttMultiAcnt.json":
+            codes = p["corp_code"].split(",")
+            return [{"stock_code": f"{int(c[1:]):06d}", "fs_div": "CFS", "account_nm": "매출액", "thstrm_amount": "10000000000"} for c in codes]
+        if path == "hyslrSttus.json":
+            return [{"nm": "홍가상", "relate": "본인", "stock_knd": "보통주", "trmend_posesn_stock_qota_rt": "40"}]
+        if path == "exctvSttus.json":
+            return [{"ofcps": "대표이사", "birth_ym": "1960년 01월"}]
+        if path == "cvbdIsDecsn.json":
+            return [{"rcept_no": "20260101000001", "bd_fta": "5,000,000,000"}]
+        if path == "list.json":
+            return [{"rcept_dt": "20261101", "report_nm": "증권신고서(지분증권)", "rcept_no": "20261101000009"}]
+        return []
+
+    def get(self, path, **p):
+        self.tick()
+        if path == "company.json":
+            return {"ceo_nm": "김가상", "corp_cls": "E" if p["corp_code"].startswith("8") else "K", "adres": "서울특별시 가상구", "jurir_no": "1101110000000"}
+        if path == "estkRs.json":
+            return {"group": [
+                {"title": "일반사항", "list": [{"sbd": "2026년 11월 20일 ~ 2026년 11월 21일", "pymd": "2026년 11월 25일"}]},
+                {"title": "증권의종류", "list": [{"slprc": "10,000", "slta": "20,000,000,000"}]},
+                {"title": "인수인정보", "list": [{"actsen": "대표주관회사", "actnmn": "가상증권"}]},
+            ]}
+        return {}
+
+
+class BuildTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        build.DATA = Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_full_run(self):
+        b = build.Builder(FakeDart(), None, TODAY)
+        for step in (b.universe, b.financials, b.scan_events, b.scan_ipo, b.details):
+            step()
+        b.save_all()
+        b.outputs()
+        listed = build.load("listed.json", [])
+        self.assertEqual(len(listed), 1200)
+        one = next(r for r in listed if r["c"] == "90000001")
+        self.assertEqual(one["rev"], 100)
+        self.assertEqual(one["age"], 66)
+        self.assertEqual(one["mhr"], 40)
+        self.assertEqual(one["mz"], [1, 50, "20260101"])
+        self.assertTrue(all(not k.startswith("_") for r in listed for k in r))
+        ipo = build.load("ipo.json", [])
+        self.assertEqual(ipo[0]["stage"], "수요예측")
+        self.assertEqual(ipo[0]["total"], 200)
+        self.assertEqual(ipo[0]["lead"], ["가상증권"])
+
+    def test_budget_resume(self):
+        b = build.Builder(FakeDart(budget=200), None, TODAY)
+        with self.assertRaises(BudgetExceeded):
+            for step in (b.universe, b.financials, b.scan_events, b.scan_ipo, b.details):
+                step()
+        b.save_all()
+        b2 = build.Builder(FakeDart(), None, TODAY)  # 다음 날 이어서
+        b2.details()
+        done = sum(1 for v in b2.cos.values() if v.get("_per") == b2.fy)
+        self.assertEqual(done, 1200)
+
+
+if __name__ == "__main__":
+    unittest.main()

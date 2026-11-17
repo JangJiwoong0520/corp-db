@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>법인 DB</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="top">
+  <h1>법인 DB</h1>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="listed" aria-selected="true">상장사</button>
+    <button role="tab" data-tab="ipo" aria-selected="false">공모 진행</button>
+  </nav>
+  <p class="meta" id="meta">불러오는 중…</p>
+</header>
+
+<main>
+  <section id="tab-listed" class="tab">
+    <div class="filters">
+      <input id="q" type="search" placeholder="회사명·종목코드·업종·대표 검색">
+      <select id="f-market"><option value="">전체 시장</option><option value="Y">코스피</option><option value="K">코스닥</option><option value="N">코넥스</option></select>
+      <label>매출 ≥ <input id="f-rev" type="number" inputmode="numeric" placeholder="억원"></label>
+      <label>현금 ≥ <input id="f-cash" type="number" inputmode="numeric" placeholder="억원"></label>
+      <label class="chk"><input type="checkbox" id="f-mz"> 메자닌(3년)</label>
+      <label class="chk"><input type="checkbox" id="f-ri"> 유상증자(3년)</label>
+      <label class="chk"><input type="checkbox" id="f-tq"> 자사주 취득(1년)</label>
+      <label class="chk"><input type="checkbox" id="f-age"> 대표 60세+</label>
+      <label class="chk"><input type="checkbox" id="f-bond"> 회사채 잔액</label>
+      <label class="chk"><input type="checkbox" id="f-chg"> 최대주주 변동</label>
+      <button id="f-reset" class="ghost">초기화</button>
+    </div>
+    <p class="count" id="count"></p>
+    <div class="table-wrap"><table id="t-listed"><thead></thead><tbody></tbody></table></div>
+    <div class="pager" id="pager"></div>
+  </section>
+
+  <section id="tab-ipo" class="tab" hidden>
+    <div class="stages" id="stages"></div>
+    <div class="cal-head"><button id="cal-prev" class="ghost">◀</button><strong id="cal-title"></strong><button id="cal-next" class="ghost">▶</button></div>
+    <div class="cal" id="cal"></div>
+    <div class="table-wrap"><table id="t-ipo"><thead></thead><tbody></tbody></table></div>
+    <p class="note">예비심사 청구·승인 단계는 KRX KIND 이용조건 확인 후 추가 예정입니다. 수요예측 날짜는 공시 원문에서 확인하세요.</p>
+  </section>
+</main>
+
+<div class="sheet" id="sheet" hidden><div class="sheet-body" role="dialog" aria-modal="true"><button class="close" id="sheet-close" aria-label="닫기">✕</button><div id="sheet-content"></div></div></div>
+
+<footer>
+  출처: 금융감독원 OpenDART, 금융위원회 기업기본정보(공공데이터포털) · 공시 내용을 정리한 참고 자료이며 투자 권유가 아닙니다 · 금액 단위 억원
+</footer>
+<script src="assets/app.js"></script>
+</body>
+</html>
