@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 import urllib.error
 import urllib.parse
@@ -32,8 +33,10 @@ class CorpInfo:
         try:
             with urllib.request.urlopen(f"{API}?{q}", timeout=60) as r:
                 raw = r.read().decode("utf-8", errors="replace")
-        except urllib.error.HTTPError as e:
-            raise CorpInfoError(f"HTTP {e.code}") from None
+        except urllib.error.HTTPError as e:  # URL(키 포함)은 출력하지 않고, 포털의 오류 이유만 보여 줌
+            body = e.read().decode("utf-8", errors="replace")
+            m = re.search(r'"returnAuthMsg"\s*:\s*"([^"]+)"', body) or re.search(r"<returnAuthMsg>([^<]+)<", body)
+            raise CorpInfoError(f"HTTP {e.code}" + (f" {m.group(1)}" if m else "")) from None
         except urllib.error.URLError as e:
             raise CorpInfoError(f"접속 실패: {e.reason}") from None
         finally:
