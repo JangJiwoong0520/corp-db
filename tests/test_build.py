@@ -116,6 +116,18 @@ class BuildTest(unittest.TestCase):
         self.assertEqual((rec["mh"], rec["mhr"]), ("홍가상", 40))
         self.assertFalse(b.needs_holder_fix(rec))
 
+    def test_market_caps(self):
+        class FakeCap:
+            calls = 0
+            def latest(self, today):
+                return "20261119", {"000001": 5000}
+        b = build.Builder(FakeDart(), None, TODAY)
+        b.mc = FakeCap()
+        b.universe(); b.market_caps(); b.outputs()
+        one = next(r for r in build.load("listed.json", []) if r["c"] == "90000001")
+        self.assertEqual(one["cap"], 5000)
+        self.assertEqual(build.load("meta.json", {})["cap_date"], "20261119")
+
     def test_budget_resume(self):
         b = build.Builder(FakeDart(budget=200), None, TODAY)
         with self.assertRaises(BudgetExceeded):

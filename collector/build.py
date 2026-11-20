@@ -21,6 +21,7 @@ from pathlib import Path
 import parse as P
 from corpinfo import CorpInfo, CorpInfoError
 from dart import BudgetExceeded, Dart, DartError, windows
+from marketcap import SOURCE as CAP_SOURCE, CapError, MarketCap
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
@@ -76,6 +77,24 @@ class Builder:
         self.events: dict[str, list] = load("events.json", {})  # rcept_no → [corp_code, 날짜, 유형]
         self.ipo: dict[str, dict] = load("ipo_state.json", {})
         self.deadline: float | None = None
+        self.mc: MarketCap | None = None
+
+    # 0. 시가총액 (공공데이터포털, DART 호출 아님)
+    def market_caps(self) -> None:
+        if not self.mc:
+            return
+        try:
+            d, caps = self.mc.latest(self.today)
+        except CapError as e:
+            log(f"- ⚠️ 시총을 못 받았습니다: {e} (어제 값 유지)")
+            return
+        n = 0
+        for r in self.cos.values():
+            v = caps.get(r.get("s", ""))
+            r["cap"] = v
+            n += v is not None
+        self.state["cap_date"] = d
+        log(f"- 시총({d[:4]}-{d[4:6]}-{d[6:]} 종가): {n:,}곳")
 
     # 1. 상장사 목록
     def universe(self) -> None:
@@ -387,6 +406,7 @@ class Builder:
         done = sum(1 for c in self.active() if self.cos[c].get("_per") == self.fy)
         save("meta.json", {
             "updated": dt.datetime.now(dt.timezone(dt.timedelta(hours=9))).strftime("%Y-%m-%d %H:%M"),
+            "cap_date": self.state.get("cap_date"), "cap_source": CAP_SOURCE,
             "fy": self.fy, "listed": total, "detail_done": done, "ipo": len(ipo_rows), "dart_calls": self.d.calls,
         })
 
@@ -402,7 +422,8 @@ def main() -> int:
     b = Builder(Dart(key, budget), CorpInfo(gokr) if gokr else None, today)
     t0 = time.time()
     b.deadline = t0 + int(os.environ.get("MAX_MINUTES", "230")) * 60
-    steps = [b.universe, b.financials, b.scan_events, b.scan_ipo, b.details]
+    b.mc = MarketCap(gokr) if gokr else None
+    steps = [b.universe, b.market_caps, b.financials, b.scan_events, b.scan_ipo, b.details]
     for step in steps:
         try:
             step()

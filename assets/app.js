@@ -31,7 +31,7 @@
   $$(".tabs button").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
 
   // ── 상장사: 필터 상태 ──
-  const F = { q: "", market: "", flags: new Set(), rev: NaN, cash: NaN };
+  const F = { q: "", market: "", flags: new Set(), rev: NaN, cash: NaN, cap: NaN };
   const FLAG = {
     mz: (r) => !!r.mz, ri: (r) => !!r.ri, tq: (r) => !!r.tq,
     age: (r) => r.age >= 60, bond: (r) => r.bond > 0, chg: (r) => r.chg > 0,
@@ -63,8 +63,8 @@
     $$("#f-market button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === F.market)));
   }
   function resetFilters() {
-    F.q = ""; F.market = ""; F.flags.clear(); F.rev = NaN; F.cash = NaN;
-    $("#q").value = ""; $("#f-rev").value = ""; $("#f-cash").value = "";
+    F.q = ""; F.market = ""; F.flags.clear(); F.rev = NaN; F.cash = NaN; F.cap = NaN;
+    $("#q").value = ""; $("#f-rev").value = ""; $("#f-cash").value = ""; $("#f-cap").value = "";
     syncChips(); page = 1; renderListed();
   }
   $("#chips").addEventListener("click", (e) => {
@@ -79,6 +79,7 @@
   $("#q").addEventListener("input", (e) => { F.q = e.target.value.trim().toLowerCase(); page = 1; renderListed(); });
   $("#f-rev").addEventListener("input", (e) => { F.rev = parseFloat(e.target.value); page = 1; renderListed(); });
   $("#f-cash").addEventListener("input", (e) => { F.cash = parseFloat(e.target.value); page = 1; renderListed(); });
+  $("#f-cap").addEventListener("input", (e) => { F.cap = parseFloat(e.target.value); page = 1; renderListed(); });
   $("#f-reset").addEventListener("click", resetFilters);
 
   function filtered() {
@@ -87,6 +88,7 @@
       if (F.market && r.m !== F.market) return false;
       if (!isNaN(F.rev) && !(r.rev >= F.rev)) return false;
       if (!isNaN(F.cash) && !(r.cash >= F.cash)) return false;
+      if (!isNaN(F.cap) && !(r.cap >= F.cap)) return false;
       for (const f of F.flags) if (!FLAG[f](r)) return false;
       return true;
     });
@@ -94,11 +96,12 @@
 
   // ── 상장사: 표·카드 ──
   const SORTV = {
-    n: (r) => r.n, rev: (r) => r.rev, op: (r) => r.op, cash: (r) => r.cash, dr: (r) => r.dr, mhr: (r) => r.mhr,
+    n: (r) => r.n, cap: (r) => r.cap, rev: (r) => r.rev, op: (r) => r.op, cash: (r) => r.cash, dr: (r) => r.dr, mhr: (r) => r.mhr,
     tsr: (r) => r.tsr, age: (r) => r.age, bond: (r) => r.bond, mz: (r) => (r.mz ? r.mz[0] : null),
   };
   const COLS = [
     { k: "n", t: "회사", cls: "l co" },
+    { k: "cap", t: "시총", u: "억원" },
     { k: "rev", t: "매출", u: "억원" },
     { k: "op", t: "영업이익", u: "억원 · 이익률" },
     { k: "cash", t: "현금성자산", u: "억원" },
@@ -108,7 +111,7 @@
     { k: "mz", t: "자금조달·주주환원", cls: "l", u: "건·금액" },
     { k: "bond", t: "회사채 잔액", u: "억원" },
   ];
-  let sortKey = store.get("sort2") || "rev", sortAsc = store.get("asc2") === "1", page = 1;
+  let sortKey = store.get("sort3") || "cap", sortAsc = store.get("asc3") === "1", page = 1;
   const PER = 40;
   $("#sort").value = sortKey;
 
@@ -124,6 +127,7 @@
   function rowHtml(r) {
     return `<tr data-c="${esc(r.c)}">
       <td class="l co"><span class="nm">${esc(r.n)} ${mk(r.m)}</span><span class="sub">${sub(r) || "&nbsp;"}</span></td>
+      <td class="capc">${num(r.cap)}</td>
       <td>${num(r.rev)}</td>
       <td>${num(r.op)}${has(r.opm) ? `<span class="cell-sub">${fmt(r.opm, 1)}%</span>` : ""}</td>
       <td>${num(r.cash)}</td>
@@ -137,7 +141,7 @@
     const m = (label, v) => `<div class="metric"><span>${label}</span><b>${v}</b></div>`;
     return `<button class="card" data-c="${esc(r.c)}">
       <div class="top"><div><div class="nm">${esc(r.n)}</div><div class="sub">${sub(r)}</div></div>${mk(r.m)}</div>
-      <div class="metrics">${m("매출", has(r.rev) ? won(r.rev) : "–")}${m("영업이익", has(r.op) ? won(r.op) : "–")}${m("현금성자산", has(r.cash) ? won(r.cash) : "–")}${m("최대주주", has(r.mhr) ? fmt(r.mhr, 1) + "%" : "–")}</div>
+      <div class="metrics">${m("시총", has(r.cap) ? won(r.cap) : "–")}${m("매출", has(r.rev) ? won(r.rev) : "–")}${m("영업이익", has(r.op) ? won(r.op) : "–")}${m("현금성자산", has(r.cash) ? won(r.cash) : "–")}</div>
       ${r.mz || r.ri || r.tq ? pills(r) : ""}</button>`;
   }
 
@@ -168,17 +172,17 @@
     $("#pager").innerHTML = pg;
     renderKpis();
   }
-  const DEFAULT_SORT = "rev";
+  const DEFAULT_SORT = "cap";
   function setSort(k, toggle) {
     const firstAsc = k === "n";
     if (toggle && k === sortKey && k !== DEFAULT_SORT) {
-      // 같은 머리글을 다시 누르면: 처음 방향 → 반대 방향 → 기본 정렬(매출 큰 순)
+      // 같은 머리글을 다시 누르면: 처음 방향 → 반대 방향 → 기본 정렬(시총 큰 순)
       if (sortAsc === firstAsc) sortAsc = !firstAsc; else { sortKey = DEFAULT_SORT; sortAsc = false; }
     } else if (toggle && k === sortKey) {
       sortAsc = !sortAsc;
     } else { sortKey = k; sortAsc = firstAsc; }
     if ([...$("#sort").options].some((o) => o.value === sortKey)) $("#sort").value = sortKey;
-    store.set("sort2", sortKey); store.set("asc2", sortAsc ? "1" : "0");
+    store.set("sort3", sortKey); store.set("asc3", sortAsc ? "1" : "0");
     page = 1; renderListed();
   }
   $("#t-listed thead").addEventListener("click", (e) => { const k = e.target.closest("th")?.dataset.k; if (k && SORTV[k]) setSort(k, true); });
@@ -212,7 +216,7 @@
         <div class="sh-links"><a href="https://finance.naver.com/item/main.naver?code=${encodeURIComponent(r.s)}" target="_blank" rel="noopener">시세 보기 ↗</a>
         ${r.lr ? `<a href="${dartLink(r.lr[2])}" target="_blank" rel="noopener">최근 정기보고서 ↗</a>` : ""}</div></div>
       <div class="sh-body">
-        <div class="sh-kpis">${tile("매출", won(r.rev), esc(r.fyl || (r.fy ? `${r.fy} 사업보고서` : "")))}${tile("영업이익", won(r.op), has(r.opm) ? `이익률 ${fmt(r.opm, 1)}%` : "")}${tile("현금성자산", won(r.cash), "연결 우선")}${tile("최대주주+특관", pct(r.mhr), esc(r.mh || ""))}</div>
+        <div class="sh-kpis">${tile("시가총액", won(r.cap), META.cap_date ? `${date8(META.cap_date)} 종가 기준` : "")}${tile("매출", won(r.rev), esc(r.fyl || (r.fy ? `${r.fy} 사업보고서` : "")))}${tile("영업이익", won(r.op), has(r.opm) ? `이익률 ${fmt(r.opm, 1)}%` : "")}${tile("현금성자산", won(r.cash), "연결 우선")}${tile("최대주주+특관", pct(r.mhr), esc(r.mh || ""))}${tile("부채비율", pct(r.dr, 0), "")}</div>
         ${sec("01", "기본 정보", kv([["대표", esc(r.ceo)], ["대표 나이", has(r.age) ? `${r.age}세` : ""], ["업종", esc(r.ind)], ["지역", esc(r.reg)], ["설립일", date8(r.est)], ["결산월", r.acc ? `${r.acc}월` : ""], ["감사인", esc(r.aud)], ["감사의견", esc(r.audop)]]))}
         ${sec("02", `재무 <small>${esc(r.fyl || (r.fy ? r.fy + " 사업보고서" : "자료 없음"))} · 억원</small>`, kv([["매출", fmt(r.rev)], ["영업이익", fmt(r.op)], ["당기순이익", fmt(r.ni)], ["자산총계", fmt(r.ta)], ["부채총계", fmt(r.tl)], ["자본총계", fmt(r.te)], ["부채비율", pct(r.dr, 0)], ["현금성자산", fmt(r.cash)], ["회사채 미상환", fmt(r.bond)]]))}
         ${sec("03", `주주·자본${r.perl ? ` <small>${esc(r.perl)}</small>` : ""}`, kv([["최대주주", esc(r.mh)], ["최대주주+특관 지분", pct(r.mhr, 2)], ["최대주주 변동", has(r.chg) ? `${r.chg}건 (해당 사업연도)` : ""], ["발행주식수", has(r.sh) ? `${fmt(r.sh)}주` : ""], ["자기주식 비율", pct(r.tsr, 2)], ["현금배당성향", pct(r.pay)]]))}
@@ -311,7 +315,9 @@
       $("#tab-n-listed").textContent = fmt(LISTED.length);
       $("#tab-n-ipo").textContent = fmt(IPO.filter((r) => !["상장", "철회"].includes(r.stage)).length);
       const prog = META.listed && META.detail_done < META.listed ? ` · 상세 수집 ${fmt(META.detail_done)}/${fmt(META.listed)}` : "";
-      $("#meta").textContent = META.updated ? `${META.updated} 갱신 · 재무 ${META.fy} 사업보고서 기준${prog}` : "아직 수집 전입니다";
+      const capTxt = META.cap_date ? ` · 시총 ${date8(META.cap_date)} 종가` : "";
+      $("#meta").textContent = META.updated ? `${META.updated} 갱신 · 재무 ${META.fy} 사업보고서 기준${capTxt}${prog}` : "아직 수집 전입니다";
+      if (META.cap_date) $("#cap-src").textContent = `· 시총 ${date8(META.cap_date)} 종가 기준`;
       syncChips(); renderListed(); renderIpo();
       const t = (location.hash || "").slice(1) || store.get("tab") || "listed";
       showTab(t === "ipo" ? "ipo" : "listed");

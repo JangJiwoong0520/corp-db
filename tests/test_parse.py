@@ -11,6 +11,13 @@ import parse as P  # noqa: E402
 from dart import windows  # noqa: E402
 
 
+class CapTest(unittest.TestCase):
+    def test_parse_caps(self):
+        from marketcap import parse_caps
+        items = [{"srtnCd": "000001", "mrktTotAmt": 123456000000}, {"srtnCd": "A0001A0", "mrktTotAmt": "990000000"}, {"srtnCd": "000003"}]
+        self.assertEqual(parse_caps(items), {"000001": 1235, "0001A0": 10})
+
+
 class ParseTest(unittest.TestCase):
     def test_multi_financials_prefers_consolidated(self):
         rows = [
