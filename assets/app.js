@@ -152,7 +152,8 @@
     const pages = Math.max(1, Math.ceil(rows.length / PER));
     page = Math.min(page, pages);
     const slice = rows.slice((page - 1) * PER, page * PER);
-    $("#count").textContent = `${fmt(rows.length)}곳 · 회사를 누르면 상세 정보`;
+    $("#count").innerHTML = `${fmt(rows.length)}곳 · 회사를 누르면 상세 정보` +
+      (sortKey !== DEFAULT_SORT || sortAsc ? ` · <button class="linkbtn" id="sort-reset">정렬 해제</button>` : "");
     $("#t-listed thead").innerHTML = "<tr>" + COLS.map((c) => `<th class="${c.cls || ""} ${c.k === sortKey ? "sorted" + (sortAsc ? " asc" : "") : ""}" data-k="${c.k}">${c.t}${c.u ? `<span class="u">${c.u}</span>` : ""}</th>`).join("") + "</tr>";
     $("#t-listed tbody").innerHTML = slice.map(rowHtml).join("") || `<tr><td class="l" colspan="9">조건에 맞는 회사가 없습니다</td></tr>`;
     $("#c-listed").innerHTML = slice.map(cardHtml).join("") || `<p class="note">조건에 맞는 회사가 없습니다</p>`;
@@ -167,14 +168,22 @@
     $("#pager").innerHTML = pg;
     renderKpis();
   }
+  const DEFAULT_SORT = "rev";
   function setSort(k, toggle) {
-    if (toggle && k === sortKey) sortAsc = !sortAsc; else { sortKey = k; sortAsc = k === "n"; }
-    $("#sort").value = SORTV[k] ? k : $("#sort").value;
+    const firstAsc = k === "n";
+    if (toggle && k === sortKey && k !== DEFAULT_SORT) {
+      // 같은 머리글을 다시 누르면: 처음 방향 → 반대 방향 → 기본 정렬(매출 큰 순)
+      if (sortAsc === firstAsc) sortAsc = !firstAsc; else { sortKey = DEFAULT_SORT; sortAsc = false; }
+    } else if (toggle && k === sortKey) {
+      sortAsc = !sortAsc;
+    } else { sortKey = k; sortAsc = firstAsc; }
+    if ([...$("#sort").options].some((o) => o.value === sortKey)) $("#sort").value = sortKey;
     store.set("sort2", sortKey); store.set("asc2", sortAsc ? "1" : "0");
     page = 1; renderListed();
   }
   $("#t-listed thead").addEventListener("click", (e) => { const k = e.target.closest("th")?.dataset.k; if (k && SORTV[k]) setSort(k, true); });
   $("#sort").addEventListener("change", (e) => setSort(e.target.value, false));
+  $("#count").addEventListener("click", (e) => { if (e.target.id === "sort-reset") setSort(DEFAULT_SORT, false); });
   $("#pager").addEventListener("click", (e) => { const p = e.target.closest("button")?.dataset.p; if (p) { page = +p; renderListed(); $("#count").scrollIntoView({ block: "start", behavior: "smooth" }); } });
   const openFromEvent = (e) => { const c = e.target.closest("[data-c]")?.dataset.c; if (c) openCompany(c); };
   $("#t-listed tbody").addEventListener("click", openFromEvent);

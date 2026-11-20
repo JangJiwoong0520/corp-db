@@ -69,6 +69,7 @@ main { padding-top: 6px; padding-bottom: 28px; }
 .chips .num input { width: 92px; padding: 6px 9px; }
 .chips .reset { border: 0; background: none; color: var(--faint); text-decoration: underline; }
 .count { color: var(--muted); font-size: 12px; margin: 14px 2px 8px; }
+.linkbtn { border: 0; background: none; padding: 0; color: var(--accent); font-weight: 600; font-size: 12px; cursor: pointer; text-decoration: underline; }
 
 /* ── 표 ── */
 .table-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: auto; }
