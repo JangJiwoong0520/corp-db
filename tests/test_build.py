@@ -96,6 +96,17 @@ class BuildTest(unittest.TestCase):
         self.assertEqual(ipo[0]["total"], 200)
         self.assertEqual(ipo[0]["lead"], ["가상증권"])
 
+    def test_holder_fix_for_old_records(self):
+        b = build.Builder(FakeDart(n=1100), None, TODAY)
+        for step in (b.universe, b.financials, b.scan_events, b.scan_ipo, b.details):
+            step()
+        rec = b.cos["90000005"]
+        rec.update(mh="계", mhr=0.0)
+        rec.pop("_mhv")
+        b.details()
+        self.assertEqual((rec["mh"], rec["mhr"]), ("홍가상", 40))
+        self.assertFalse(b.needs_holder_fix(rec))
+
     def test_budget_resume(self):
         b = build.Builder(FakeDart(budget=200), None, TODAY)
         with self.assertRaises(BudgetExceeded):

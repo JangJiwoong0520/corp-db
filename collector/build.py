@@ -26,6 +26,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 ANNUAL = "11011"
 MARKETS = {"Y": "코스피", "K": "코스닥", "N": "코넥스"}
+HOLDER_VERSION = 2  # 최대주주 지분 계산 방식 버전
 
 log_lines: list[str] = []
 
@@ -192,6 +193,8 @@ class Builder:
                 return 0
             if days_since(r.get("_co"), self.today) > 120:
                 return 1
+            if self.needs_holder_fix(r):
+                return 3
             if r.get("_evsig") != self.event_sig(c):
                 return 2
             return 9
@@ -208,6 +211,9 @@ class Builder:
                 self.save_all()
                 log(f"  진행 {done:,}/{len(todo):,} (DART 호출 {self.d.calls:,})")
         log(f"- 회사별 상세: {done:,}곳 갱신")
+
+    def needs_holder_fix(self, r: dict) -> bool:
+        return r.get("_per") == self.fy and r.get("_mhv") != HOLDER_VERSION and (not r.get("mhr") or r.get("mh") in ("계", "합계", "소계"))
 
     def event_sig(self, c: str) -> str:
         return ",".join(sorted(k for k, v in self.events.items() if v[0] == c))
@@ -235,6 +241,11 @@ class Builder:
                 self.ci = None
         if r.get("_per") != self.fy and days_since(r.get("_per_try"), self.today) >= 30:
             self.periodic(c, r)
+        if self.needs_holder_fix(r):  # 지분 계산 방식 수정(2026-11-20) → 최대주주 현황만 다시 받기
+            rows = self.d.rows("hyslrSttus.json", corp_code=c, bsns_year=self.fy, reprt_code=ANNUAL)
+            if rows:
+                r.update(P.major_holder(rows))
+            r["_mhv"] = HOLDER_VERSION
         sig = self.event_sig(c)
         if r.get("_evsig") != sig:
             self.event_amounts(c)
@@ -248,6 +259,7 @@ class Builder:
             r["_per_try"] = self.today.isoformat()
             return
         r.update(P.major_holder(holders))
+        r["_mhv"] = HOLDER_VERSION
         r["age"] = P.ceo_age(self.d.rows("exctvSttus.json", **q), self.today)
         r.update(P.shares(self.d.rows("stockTotqySttus.json", **q)))
         r.update(P.employees(self.d.rows("empSttus.json", **q)))

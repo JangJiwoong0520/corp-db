@@ -84,23 +84,23 @@ def cash_from_statements(rows: list[dict]) -> int | None:
 
 # ── 최대주주 (hyslrSttus) ──
 def major_holder(rows: list[dict]) -> dict:
+    """최대주주 이름과 최대주주+특수관계인 합계 지분율(보통주)"""
     common = [r for r in rows if "보통" in (r.get("stock_knd") or "") or not r.get("stock_knd")]
     rows = common or rows
+    is_total = lambda r: norm(r.get("nm", "")) in ("계", "합계", "소계") or norm(r.get("relate", "")) in ("계", "합계")
+    people = [r for r in rows if not is_total(r)]
     total = None
-    name = None
     for r in rows:
-        nm = norm(r.get("nm", ""))
-        if nm in ("계", "합계"):
+        if is_total(r):
             total = num(r.get("trmend_posesn_stock_qota_rt"))
-        elif name is None and "본인" in (r.get("relate") or ""):
-            name = (r.get("nm") or "").strip()
-    if total is None:
-        vals = [num(r.get("trmend_posesn_stock_qota_rt")) for r in rows if norm(r.get("nm", "")) not in ("계", "합계")]
+    if not total:  # 합계 줄이 없거나 0으로 적힌 경우 → 개별 합산
+        vals = [num(r.get("trmend_posesn_stock_qota_rt")) for r in people]
         vals = [v for v in vals if v is not None]
-        total = round(sum(vals), 2) if vals else None
-    if name is None and rows:
-        name = (rows[0].get("nm") or "").strip() or None
-    return {"mh": name, "mhr": total}
+        total = round(sum(vals), 2) if vals and sum(vals) > 0 else None
+    name = next((r.get("nm") for r in people if "본인" in (r.get("relate") or "") or "최대주주" in (r.get("relate") or "")), None)
+    if not name and people:
+        name = max(people, key=lambda r: num(r.get("trmend_posesn_stock_qota_rt")) or 0).get("nm")
+    return {"mh": (name or "").strip() or None, "mhr": total}
 
 
 # ── 대표 나이 (exctvSttus) ──

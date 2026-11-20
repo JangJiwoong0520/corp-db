@@ -41,6 +41,16 @@ class ParseTest(unittest.TestCase):
         ]
         self.assertEqual(P.major_holder(rows), {"mh": "홍가상", "mhr": 35.1})
 
+    def test_major_holder_zero_total_and_no_self(self):
+        rows = [
+            {"nm": "가상모회사", "relate": "최대주주", "stock_knd": "보통주", "trmend_posesn_stock_qota_rt": "21.00"},
+            {"nm": "가상재단", "relate": "계열회사", "stock_knd": "보통주", "trmend_posesn_stock_qota_rt": "4.00"},
+            {"nm": "계", "relate": "", "stock_knd": "보통주", "trmend_posesn_stock_qota_rt": "0.00"},
+        ]
+        self.assertEqual(P.major_holder(rows), {"mh": "가상모회사", "mhr": 25.0})
+        rows2 = [{"nm": "계", "relate": "", "trmend_posesn_stock_qota_rt": "30"}, {"nm": "가상법인", "relate": "특수관계인", "trmend_posesn_stock_qota_rt": "30"}]
+        self.assertEqual(P.major_holder(rows2)["mh"], "가상법인")
+
     def test_ceo_age(self):
         rows = [
             {"ofcps": "대표이사", "birth_ym": "1960년 12월"},
