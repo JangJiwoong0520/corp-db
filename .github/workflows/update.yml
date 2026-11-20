@@ -48,6 +48,8 @@ jobs:
           git add data
           git diff --cached --quiet || git commit -m "데이터 갱신 $(TZ=Asia/Seoul date +%F)"
           git push
+      - name: 디자인 파일 새로 받게 하기 (브라우저 캐시 방지)
+        run: sed -i "s/?v=dev/?v=${GITHUB_SHA::7}-$(date +%s)/g" index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
