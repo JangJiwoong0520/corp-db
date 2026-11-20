@@ -219,3 +219,26 @@ tbody tr:hover { background: #f1f8f3; }
 .sh-head .sub { color: #cfe9d8; }
 .sh-head .eyebrow { color: #a7e3bd; }
 .sh-kpis .kpi b { color: var(--ink); }
+
+/* ── 모드 버튼 ── */
+.hero-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mode { display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.1); color: #fff; border-radius: 999px; padding: 7px 12px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.mode:hover { background: rgba(255,255,255,.2); }
+@media (max-width: 760px) { .hero-right { width: 100%; } .mode-txt { display: none; } .mode { padding: 7px 10px; } .hero-right .tabs { flex: 1; } }
+
+/* ── 다크 모드 (버튼으로 선택했을 때만) ── */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --navy: #0f2a1c; --navy-2: #14402a; --accent: #3fbf7f; --accent-2: #6fd9a2; --accent-soft: #173325;
+  --bg: #0c1310; --panel: #131c17; --ink: #eef5f0; --text: #d4ded7; --muted: #93a39a; --faint: #6b7a71;
+  --line: #24332b; --line-2: #1b2620; --red: #ff6b63; --green: #3fbf7f;
+  --kospi: #6b9bff; --kosdaq: #3cc7d9; --konex: #8b95a1; --mz: #b394ff; --ri: #ff9a5c; --tq: #4fd38c;
+  --shadow: 0 1px 2px rgba(0,0,0,.35);
+}
+:root[data-theme="dark"] th { background: #111a15; }
+:root[data-theme="dark"] tbody tr:hover { background: #17241d; }
+:root[data-theme="dark"] .kpi[aria-pressed="true"] { background: #142019; }
+:root[data-theme="dark"] .mk { color: #0c1310; }
+:root[data-theme="dark"] .seg button[aria-pressed="true"], :root[data-theme="dark"] .sec span { color: #0c1310; }
+:root[data-theme="dark"] .tabs button[aria-selected="true"] { color: #0f2a1c; }
+:root[data-theme="dark"] .pager button[aria-current="true"], :root[data-theme="dark"] .stage.s-청약중 { color: #0c1310; }
