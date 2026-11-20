@@ -79,14 +79,20 @@ class Builder:
 
     # 1. 상장사 목록
     def universe(self) -> None:
-        if days_since(self.state.get("universe"), self.today) < 7 and self.cos:
+        has_lr = all(v.get("lr") for v in self.cos.values() if not v.get("_gone")) if self.cos else False
+        if days_since(self.state.get("universe"), self.today) < 7 and self.cos and has_lr:
             return
         seen: dict[str, dict] = {}
         for cls in MARKETS:
             for a, b in windows(self.today - dt.timedelta(days=180), self.today):
                 for r in self.d.search(a, b, pblntf_ty="A", corp_cls=cls):
-                    if r.get("stock_code"):
-                        seen[r["corp_code"]] = {"n": r.get("corp_name", ""), "s": r["stock_code"], "m": cls}
+                    if not r.get("stock_code"):
+                        continue
+                    rec = seen.setdefault(r["corp_code"], {"n": r.get("corp_name", ""), "s": r["stock_code"], "m": cls})
+                    per = P.report_period(r.get("report_nm", ""))
+                    if per and (not rec.get("lr") or r["rcept_dt"] >= rec["lr"][0]):
+                        rec["lr"] = [r["rcept_dt"], r.get("report_nm", ""), r["rcept_no"]]
+                        rec["_lrp"] = list(per)
         if len(seen) < 1000:  # 이상하게 적으면 덮어쓰지 않음
             log(f"- ⚠️ 상장사 목록이 {len(seen)}곳뿐이라 갱신하지 않았습니다")
             return
@@ -106,7 +112,7 @@ class Builder:
     # 2. 재무 (다중회사)
     def financials(self) -> None:
         key = f"{self.fy}"
-        if self.state.get("fin_year") == key and days_since(self.state.get("fin"), self.today) < 7:
+        if self.state.get("fin_year") == key and self.state.get("fin_v") == 2 and days_since(self.state.get("fin"), self.today) < 7:
             return
         codes = self.active()
         n = 0
@@ -119,8 +125,29 @@ class Builder:
                     self.cos[c].update({k: f.get(k) for k in ("rev", "op", "ni", "ta", "tl", "te", "opm", "dr")})
                     self.cos[c]["fy"] = self.fy
                     n += 1
-        self.state.update(fin_year=key, fin=self.today.isoformat())
-        log(f"- 재무({self.fy} 사업보고서): {n:,}곳")
+        # 사업보고서가 없는 회사(신규상장 등)는 최근 분기·반기 보고서로
+        groups: dict[tuple, list[str]] = {}
+        for c in codes:
+            r = self.cos[c]
+            if r.get("fy") == self.fy and not r.get("fyl"):
+                continue
+            per = r.get("_lrp")
+            if per and per[1] != ANNUAL:
+                groups.setdefault(tuple(per), []).append(c)
+        q = 0
+        for (y, code), cs in groups.items():
+            for i in range(0, len(cs), 100):
+                rows = self.d.rows("fnlttMultiAcnt.json", corp_code=",".join(cs[i : i + 100]), bsns_year=y, reprt_code=code)
+                by_stock = P.multi_financials(rows, cumulative=True)
+                for c in cs[i : i + 100]:
+                    f = by_stock.get(self.cos[c].get("s", ""))
+                    if f:
+                        self.cos[c].update({k: f.get(k) for k in ("rev", "op", "ni", "ta", "tl", "te", "opm", "dr")})
+                        self.cos[c]["fy"] = self.fy
+                        self.cos[c]["fyl"] = P.period_label(y, code) + (" · 손익 누적" if code != ANNUAL else "")
+                        q += 1
+        self.state.update(fin_year=key, fin=self.today.isoformat(), fin_v=2)
+        log(f"- 재무({self.fy} 사업보고서): {n:,}곳" + (f", 분기·반기 보고서로 보완: {q:,}곳" if q else ""))
 
     # 3. 주요사항보고서 이벤트
     def scan_events(self) -> None:
@@ -189,7 +216,7 @@ class Builder:
 
         def stale(c: str) -> int:
             r = self.cos[c]
-            if r.get("_per") != self.fy and days_since(r.get("_per_try"), self.today) >= 30:
+            if r.get("_per") != self.fy and (days_since(r.get("_per_try"), self.today) >= 30 or self.can_use_quarter(r)):
                 return 0
             if days_since(r.get("_co"), self.today) > 120:
                 return 1
@@ -211,6 +238,11 @@ class Builder:
                 self.save_all()
                 log(f"  진행 {done:,}/{len(todo):,} (DART 호출 {self.d.calls:,})")
         log(f"- 회사별 상세: {done:,}곳 갱신")
+
+    def can_use_quarter(self, r: dict) -> bool:
+        """사업보고서는 없고 최근 분기·반기 보고서가 있으며, 아직 그걸로 시도하지 않은 회사"""
+        per = r.get("_lrp")
+        return bool(per) and per[1] != ANNUAL and r.get("_qtry") != per
 
     def needs_holder_fix(self, r: dict) -> bool:
         return r.get("_per") == self.fy and r.get("_mhv") != HOLDER_VERSION and (not r.get("mhr") or r.get("mh") in ("계", "합계", "소계"))
@@ -239,7 +271,7 @@ class Builder:
             except CorpInfoError as e:
                 log(f"  ⚠️ 업종명 조회 중단: {e}")
                 self.ci = None
-        if r.get("_per") != self.fy and days_since(r.get("_per_try"), self.today) >= 30:
+        if r.get("_per") != self.fy and (days_since(r.get("_per_try"), self.today) >= 30 or self.can_use_quarter(r)):
             self.periodic(c, r)
         if self.needs_holder_fix(r):  # 지분 계산 방식 수정(2026-11-20) → 최대주주 현황만 다시 받기
             rows = self.d.rows("hyslrSttus.json", corp_code=c, bsns_year=self.fy, reprt_code=ANNUAL)
@@ -255,6 +287,12 @@ class Builder:
         y = self.fy
         q = dict(corp_code=c, bsns_year=y, reprt_code=ANNUAL)
         holders = self.d.rows("hyslrSttus.json", **q)
+        if not holders and self.can_use_quarter(r):  # 사업보고서가 없으면 최근 분기·반기 보고서로
+            r["_qtry"] = r["_lrp"]
+            q = dict(corp_code=c, bsns_year=r["_lrp"][0], reprt_code=r["_lrp"][1])
+            holders = self.d.rows("hyslrSttus.json", **q)
+            if holders:
+                r["perl"] = P.period_label(r["_lrp"][0], r["_lrp"][1])
         if not holders:  # 그 해 사업보고서가 아직 없음 (신규상장 등) → 30일 뒤 다시
             r["_per_try"] = self.today.isoformat()
             return

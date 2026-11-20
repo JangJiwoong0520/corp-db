@@ -30,7 +30,8 @@ class FakeDart:
         if p.get("pblntf_ty") == "A":
             if p.get("corp_cls") != "K":
                 return []
-            return [{"corp_code": f"9{i:07d}", "corp_name": f"가상기업{i}", "stock_code": f"{i:06d}", "corp_cls": "K"} for i in range(self.n)]
+            return [{"corp_code": f"9{i:07d}", "corp_name": f"가상기업{i}", "stock_code": f"{i:06d}", "corp_cls": "K",
+                     "report_nm": "분기보고서 (2026.09)" if i == 7 else "사업보고서 (2025.12)", "rcept_dt": "20261114", "rcept_no": f"2026111400{i:04d}"} for i in range(self.n)]
         if p.get("pblntf_ty") == "B":
             return [{"rcept_no": "20260101000001", "corp_code": "90000001", "rcept_dt": "20260101", "report_nm": "주요사항보고서(전환사채권발행결정)"}]
         if p.get("pblntf_ty") == "C":
@@ -43,8 +44,10 @@ class FakeDart:
     def rows(self, path, **p):
         self.tick()
         if path == "fnlttMultiAcnt.json":
-            codes = p["corp_code"].split(",")
+            codes = [c for c in p["corp_code"].split(",") if (c != "90000007") == (p["reprt_code"] == "11011")]
             return [{"stock_code": f"{int(c[1:]):06d}", "fs_div": "CFS", "account_nm": "매출액", "thstrm_amount": "10000000000"} for c in codes]
+        if path == "hyslrSttus.json" and p["corp_code"] == "90000007" and p["reprt_code"] == "11011":
+            return []  # 신규상장: 사업보고서 없음
         if path == "hyslrSttus.json":
             return [{"nm": "홍가상", "relate": "본인", "stock_knd": "보통주", "trmend_posesn_stock_qota_rt": "40"}]
         if path == "exctvSttus.json":
@@ -90,6 +93,12 @@ class BuildTest(unittest.TestCase):
         self.assertEqual(one["mhr"], 40)
         self.assertEqual(one["mz"], [1, 50, "20260101"])
         self.assertTrue(all(not k.startswith("_") for r in listed for k in r))
+        new = next(r for r in listed if r["c"] == "90000007")  # 분기보고서로 보완
+        self.assertEqual(new["rev"], 100)
+        self.assertEqual(new["fyl"], "2026 3분기 보고서 · 손익 누적")
+        self.assertEqual(new["perl"], "2026 3분기 보고서")
+        self.assertEqual(new["mhr"], 40)
+        self.assertEqual(new["lr"][2], "20261114000007")
         ipo = build.load("ipo.json", [])
         self.assertEqual([r["n"] for r in ipo], ["가상공모"])  # 일괄신고서 회사는 제외
         self.assertEqual(ipo[0]["stage"], "수요예측")

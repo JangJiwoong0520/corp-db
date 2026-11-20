@@ -201,13 +201,14 @@
       <div class="sh-head"><p class="eyebrow">${esc(MARKET[r.m] || "")} · ${esc(r.s)}</p><h2>${esc(r.n)}</h2>
         <div class="sub">${sub(r)}</div>
         <div class="sh-links"><a href="https://finance.naver.com/item/main.naver?code=${encodeURIComponent(r.s)}" target="_blank" rel="noopener">시세 보기 ↗</a>
-        <a href="https://dart.fss.or.kr/dsab007/main.do?option=corp&textCrpNm=${encodeURIComponent(r.n)}" target="_blank" rel="noopener">DART 공시 ↗</a></div></div>
+        ${r.lr ? `<a href="${dartLink(r.lr[2])}" target="_blank" rel="noopener">최근 정기보고서 ↗</a>` : ""}</div></div>
       <div class="sh-body">
-        <div class="sh-kpis">${tile("매출", won(r.rev), `${r.fy || ""} 사업보고서`)}${tile("영업이익", won(r.op), has(r.opm) ? `이익률 ${fmt(r.opm, 1)}%` : "")}${tile("현금성자산", won(r.cash), "연결 우선")}${tile("최대주주+특관", pct(r.mhr), esc(r.mh || ""))}</div>
+        <div class="sh-kpis">${tile("매출", won(r.rev), esc(r.fyl || (r.fy ? `${r.fy} 사업보고서` : "")))}${tile("영업이익", won(r.op), has(r.opm) ? `이익률 ${fmt(r.opm, 1)}%` : "")}${tile("현금성자산", won(r.cash), "연결 우선")}${tile("최대주주+특관", pct(r.mhr), esc(r.mh || ""))}</div>
         ${sec("01", "기본 정보", kv([["대표", esc(r.ceo)], ["대표 나이", has(r.age) ? `${r.age}세` : ""], ["업종", esc(r.ind)], ["지역", esc(r.reg)], ["설립일", date8(r.est)], ["결산월", r.acc ? `${r.acc}월` : ""], ["감사인", esc(r.aud)], ["감사의견", esc(r.audop)]]))}
-        ${sec("02", `재무 <small>${r.fy || "-"} 사업보고서 · 억원</small>`, kv([["매출", fmt(r.rev)], ["영업이익", fmt(r.op)], ["당기순이익", fmt(r.ni)], ["자산총계", fmt(r.ta)], ["부채총계", fmt(r.tl)], ["자본총계", fmt(r.te)], ["부채비율", pct(r.dr, 0)], ["현금성자산", fmt(r.cash)], ["회사채 미상환", fmt(r.bond)]]))}
-        ${sec("03", "주주·자본", kv([["최대주주", esc(r.mh)], ["최대주주+특관 지분", pct(r.mhr, 2)], ["최대주주 변동", has(r.chg) ? `${r.chg}건 (해당 사업연도)` : ""], ["발행주식수", has(r.sh) ? `${fmt(r.sh)}주` : ""], ["자기주식 비율", pct(r.tsr, 2)], ["현금배당성향", pct(r.pay)]]))}
+        ${sec("02", `재무 <small>${esc(r.fyl || (r.fy ? r.fy + " 사업보고서" : "자료 없음"))} · 억원</small>`, kv([["매출", fmt(r.rev)], ["영업이익", fmt(r.op)], ["당기순이익", fmt(r.ni)], ["자산총계", fmt(r.ta)], ["부채총계", fmt(r.tl)], ["자본총계", fmt(r.te)], ["부채비율", pct(r.dr, 0)], ["현금성자산", fmt(r.cash)], ["회사채 미상환", fmt(r.bond)]]))}
+        ${sec("03", `주주·자본${r.perl ? ` <small>${esc(r.perl)}</small>` : ""}`, kv([["최대주주", esc(r.mh)], ["최대주주+특관 지분", pct(r.mhr, 2)], ["최대주주 변동", has(r.chg) ? `${r.chg}건 (해당 사업연도)` : ""], ["발행주식수", has(r.sh) ? `${fmt(r.sh)}주` : ""], ["자기주식 비율", pct(r.tsr, 2)], ["현금배당성향", pct(r.pay)]]))}
         ${sec("04", "임직원", kv([["직원 수", has(r.emp) ? `${fmt(r.emp)}명` : ""], ["1인 평균 급여", has(r.sal) ? `${fmt(r.sal)}백만원` : ""], ["평균 근속", has(r.ten) ? `${fmt(r.ten, 1)}년` : ""]]))}
+        ${r.lr ? `<p class="note">최근 정기보고서: ${date8(r.lr[0])} · ${esc(r.lr[1])}</p>` : ""}
         ${sec("05", "주요사항보고서 <small>최근 3년</small>", ev ? `<div class="panel"><ul class="timeline">${ev}</ul></div>` : '<p class="note">최근 3년 CB·BW·EB·유상증자·자사주 취득 결정 없음</p>')}
       </div>`);
   }

@@ -28,6 +28,20 @@ class ParseTest(unittest.TestCase):
         self.assertEqual(f["000001"]["dr"], 50)
         self.assertEqual(f["000002"]["rev"], 3)
 
+    def test_quarter_cumulative(self):
+        rows = [{"stock_code": "000009", "fs_div": "CFS", "sj_div": "IS", "account_nm": "매출액", "thstrm_amount": "1,000,000,000", "thstrm_add_amount": "3,000,000,000"},
+                {"stock_code": "000009", "fs_div": "CFS", "sj_div": "BS", "account_nm": "자산총계", "thstrm_amount": "9,000,000,000", "thstrm_add_amount": ""}]
+        f = P.multi_financials(rows, cumulative=True)["000009"]
+        self.assertEqual((f["rev"], f["ta"]), (30, 90))
+        self.assertEqual(P.multi_financials(rows)["000009"]["rev"], 10)
+
+    def test_report_period(self):
+        self.assertEqual(P.report_period("분기보고서 (2026.09)"), (2026, "11014"))
+        self.assertEqual(P.report_period("[기재정정]반기보고서 (2026.06)"), (2026, "11012"))
+        self.assertEqual(P.report_period("사업보고서 (2025.12)"), (2025, "11011"))
+        self.assertIsNone(P.report_period("주요사항보고서(유상증자결정)"))
+        self.assertEqual(P.period_label(2026, "11014"), "2026 3분기 보고서")
+
     def test_cash(self):
         rows = [{"sj_div": "BS", "account_id": "ifrs-full_CashAndCashEquivalents", "account_nm": "현금및현금성자산", "thstrm_amount": "12,300,000,000"}]
         self.assertEqual(P.cash_from_statements(rows), 123)

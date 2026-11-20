@@ -46,7 +46,7 @@ MULTI_ACCOUNTS = {
 }
 
 
-def multi_financials(rows: list[dict]) -> dict[str, dict]:
+def multi_financials(rows: list[dict], cumulative: bool = False) -> dict[str, dict]:
     """종목코드별 {rev, op, ni, ta, tl, te(억원), opm(%), dr(%), fs} — 연결(CFS) 우선, 없으면 개별"""
     raw: dict[tuple[str, str], dict] = {}
     for r in rows:
@@ -54,7 +54,10 @@ def multi_financials(rows: list[dict]) -> dict[str, dict]:
         code = (r.get("stock_code") or "").strip()
         if not key or not code:
             continue
-        raw.setdefault((code, r.get("fs_div") or ""), {})[key] = eok(r.get("thstrm_amount"))
+        amt = r.get("thstrm_amount")
+        if cumulative and r.get("sj_div") in ("IS", "CIS") and (r.get("thstrm_add_amount") or "").strip() not in ("", "-"):
+            amt = r.get("thstrm_add_amount")  # 분기·반기 손익은 누적 금액
+        raw.setdefault((code, r.get("fs_div") or ""), {})[key] = eok(amt)
     out: dict[str, dict] = {}
     for (code, fs), vals in raw.items():
         if code in out and out[code]["fs"] == "CFS":
@@ -247,3 +250,27 @@ def is_equity_registration(report_nm: str) -> bool:
     """공모 대상: 증권신고서(지분증권) 계열만 (일괄신고서·채무증권·투자계약증권 등 제외)"""
     n = norm(report_nm)
     return "증권신고서(지분증권)" in n or "투자설명서" == n.split("]")[-1]
+
+
+REPORT_CODES = {3: "11013", 6: "11012", 9: "11014", 12: "11011"}
+REPORT_LABEL = {"11013": "1분기", "11012": "반기", "11014": "3분기", "11011": "사업보고서"}
+
+
+def report_period(report_nm: str) -> tuple[int, str] | None:
+    """'분기보고서 (2026.09)' → (2026, '11014')  — 정기보고서의 사업연도와 보고서 코드"""
+    n = norm(report_nm)
+    if not any(k in n for k in ("사업보고서", "반기보고서", "분기보고서")):
+        return None
+    m = re.search(r"\((\d{4})\.(\d{2})\)", n)
+    if not m:
+        return None
+    y, mo = int(m.group(1)), int(m.group(2))
+    code = REPORT_CODES.get(mo)
+    if not code:  # 12월 결산이 아닌 회사: 보고서 종류로 판단
+        code = "11011" if "사업보고서" in n else "11012" if "반기" in n else "11014"
+    return y, code
+
+
+def period_label(year: int, code: str) -> str:
+    lab = REPORT_LABEL.get(code, "")
+    return f"{year} 사업보고서" if code == "11011" else f"{year} {lab} 보고서"
