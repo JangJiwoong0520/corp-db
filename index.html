@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#14532d">
-<meta name="color-scheme" content="light">
+<meta name="color-scheme" content="light dark">
+<script>try{if(localStorage.getItem("theme")==="dark")document.documentElement.dataset.theme="dark"}catch(e){}</script>
 <title>법인 DB</title>
 <link rel="stylesheet" href="assets/style.css?v=dev">
 </head>
@@ -15,10 +16,13 @@
     <p class="eyebrow">CORPORATE DATABASE · 공시 기반 참고자료</p>
     <div class="hero-row">
       <h1>법인 DB</h1>
+      <div class="hero-right">
+      <button class="mode" id="mode" type="button" aria-label="화면 모드 바꾸기"><span class="mode-ico" aria-hidden="true">🌙</span><span class="mode-txt">다크 모드</span></button>
       <nav class="tabs" role="tablist" aria-label="보기 선택">
         <button role="tab" data-tab="listed" aria-selected="true">상장사 <span id="tab-n-listed"></span></button>
         <button role="tab" data-tab="ipo" aria-selected="false">공모 진행 <span id="tab-n-ipo"></span></button>
       </nav>
+      </div>
     </div>
     <p class="hero-meta" id="meta">불러오는 중…</p>
   </div>

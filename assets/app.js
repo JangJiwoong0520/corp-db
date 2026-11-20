@@ -20,6 +20,20 @@
 
   let LISTED = [], IPO = [], META = {};
 
+  // ── 라이트/다크 모드 (기본 라이트, 선택은 이 기기에 저장) ──
+  function applyMode(mode) {
+    const dark = mode === "dark";
+    if (dark) document.documentElement.dataset.theme = "dark"; else delete document.documentElement.dataset.theme;
+    $(".mode-ico").textContent = dark ? "☀️" : "🌙";
+    $(".mode-txt").textContent = dark ? "라이트 모드" : "다크 모드";
+    const meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.content = dark ? "#0f2a1c" : "#14532d";
+  }
+  applyMode(store.get("theme") === "dark" ? "dark" : "light");
+  $("#mode").addEventListener("click", () => {
+    const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    store.set("theme", next); applyMode(next);
+  });
+
   // ── 탭 ──
   function showTab(name) {
     $$(".tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
