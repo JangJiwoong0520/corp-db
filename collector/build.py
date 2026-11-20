@@ -241,6 +241,8 @@ class Builder:
                 return 1
             if self.needs_holder_fix(r):
                 return 3
+            if self.ci and r.get("_crno") and days_since(r.get("_ind"), self.today) > 180:
+                return 4  # 업종 이름 아직 없음 (공공데이터포털만 호출, DART 호출 없음)
             if r.get("_evsig") != self.event_sig(c):
                 return 2
             return 9

@@ -128,6 +128,19 @@ class BuildTest(unittest.TestCase):
         self.assertEqual(one["cap"], 5000)
         self.assertEqual(build.load("meta.json", {})["cap_date"], "20261119")
 
+    def test_industry_for_finished_companies(self):
+        class FakeCI:
+            def industry(self, crno):
+                return "가상 제조업"
+        b = build.Builder(FakeDart(n=1100), None, TODAY)
+        for step in (b.universe, b.financials, b.scan_events, b.scan_ipo, b.details):
+            step()
+        calls = b.d.calls
+        b.ci = FakeCI()
+        b.details()  # 이미 다 수집된 회사도 업종 이름은 채워야 함
+        self.assertEqual(b.cos["90000003"]["ind"], "가상 제조업")
+        self.assertEqual(b.d.calls, calls)  # DART 호출은 추가로 하지 않음
+
     def test_budget_resume(self):
         b = build.Builder(FakeDart(budget=200), None, TODAY)
         with self.assertRaises(BudgetExceeded):
