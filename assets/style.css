@@ -1,18 +1,12 @@
 :root {
-  --navy: #0d2350; --navy-2: #163271; --accent: #2453d6; --accent-2: #6d8ff0; --accent-soft: #eaf0ff;
-  --bg: #f4f6fa; --panel: #ffffff; --ink: #0f172a; --text: #1e293b; --muted: #64748b; --faint: #94a3b8;
-  --line: #e4e8f0; --line-2: #eef1f6; --red: #d64545; --green: #148a5b; --amber: #b7791f;
-  --kospi: #2453d6; --kosdaq: #0f8a7a; --konex: #7c8597;
-  --mz: #6a4bd8; --ri: #d0791f; --tq: #148a5b;
-  --shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 4px 16px rgba(15, 23, 42, .05);
+  color-scheme: light;
+  --navy: #14532d; --navy-2: #1b6b3c; --accent: #157347; --accent-2: #2f9e66; --accent-soft: #e2f3e8;
+  --bg: #f3f8f4; --panel: #ffffff; --ink: #0d1a12; --text: #1f2b24; --muted: #56665c; --faint: #8a988f;
+  --line: #d5e3d9; --line-2: #e8f0ea; --red: #d1372f; --green: #157347; --amber: #b7791f;
+  --kospi: #1d4ed8; --kosdaq: #0e7490; --konex: #6b7280;
+  --mz: #6d28d9; --ri: #c2410c; --tq: #15803d;
+  --shadow: 0 1px 2px rgba(13, 26, 18, .05), 0 6px 18px rgba(13, 26, 18, .05);
   --radius: 14px;
-}
-@media (prefers-color-scheme: dark) {
-  :root { --navy: #0a1a3d; --navy-2: #12285a; --accent: #7aa0ff; --accent-2: #9db8ff; --accent-soft: #1b2a4f;
-    --bg: #0c1220; --panel: #131b2e; --ink: #f1f5f9; --text: #dbe3ee; --muted: #93a1b5; --faint: #66748a;
-    --line: #232f47; --line-2: #1b253a; --red: #ff7a7a; --green: #4fd29c; --amber: #f0b45a;
-    --kospi: #7aa0ff; --kosdaq: #4fd2c0; --konex: #9aa4b6; --mz: #a993ff; --ri: #f0a65a; --tq: #4fd29c;
-    --shadow: 0 1px 2px rgba(0,0,0,.3); }
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -203,3 +197,25 @@ footer p { margin: 3px 0; }
   .legend { display: none; }
   .kv { grid-template-columns: 8em 1fr; }
 }
+
+/* ── 색 정리 (2026-11-20 시안 2: 연초록 바탕 + 숲색 머리) ── */
+.hero { background: linear-gradient(135deg, var(--navy) 0%, var(--navy-2) 100%); }
+.eyebrow { color: #a7e3bd; }
+.hero-meta { color: #cfe9d8; }
+.tabs button { color: #e2f3e8; }
+.tabs button[aria-selected="true"] { background: #fff; color: var(--navy); }
+.sec { font-size: 19px; font-weight: 800; color: var(--ink); padding-left: 12px; border-left: 4px solid var(--accent); line-height: 1.2; margin: 30px 0 14px; }
+.sec span { background: var(--accent); color: #fff; font-size: 11px; padding: 3px 7px; border-radius: 6px; letter-spacing: .02em; }
+.sec small { color: var(--muted); font-size: 12.5px; font-weight: 500; }
+.kpi b { color: var(--ink); font-weight: 800; }
+.kpi b small { color: var(--muted); }
+.kpi .t { color: var(--text); font-weight: 700; font-size: 13px; }
+.kpi[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); background: #fbfefc; }
+.kpi[aria-pressed="true"] b { color: var(--accent); }
+th { color: var(--text); font-weight: 700; background: #f8fbf9; }
+th.sorted { color: var(--accent); }
+tbody tr:hover { background: #f1f8f3; }
+.pipeline b { color: var(--ink); }
+.sh-head .sub { color: #cfe9d8; }
+.sh-head .eyebrow { color: #a7e3bd; }
+.sh-kpis .kpi b { color: var(--ink); }

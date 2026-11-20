@@ -51,11 +51,20 @@ jobs:
       - name: 디자인 파일 새로 받게 하기 (브라우저 캐시 방지)
         run: sed -i "s/?v=dev/?v=${GITHUB_SHA::7}-$(date +%s)/g" index.html
       - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: .
+      - name: 배포 전 잠시 대기 (GitHub 쪽 파일 등록 시간)
+        run: sleep 20
       - id: deploy
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+      - name: 배포 실패 시 한 번 더 대기
+        if: steps.deploy.outcome == 'failure'
+        run: sleep 60
+      - id: deploy2
+        if: steps.deploy.outcome == 'failure'
         uses: actions/deploy-pages@v4
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+      url: ${{ steps.deploy.outputs.page_url || steps.deploy2.outputs.page_url }}

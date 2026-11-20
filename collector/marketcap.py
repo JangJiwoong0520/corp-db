@@ -13,11 +13,10 @@ from __future__ import annotations
 
 import datetime as dt
 import json
-import re
 import time
-import urllib.error
 import urllib.parse
-import urllib.request
+
+from gokr import PortalError, fetch
 
 API = "https://apis.data.go.kr/1160100/GetStockSecuritiesInfoService_V2/getStockPriceInfo_V2"
 SOURCE = "금융위원회 주식시세정보(공공데이터포털)"
@@ -37,14 +36,9 @@ class MarketCap:
         q = urllib.parse.urlencode({"serviceKey": self.key, "resultType": "json", **params})
         self.calls += 1
         try:
-            with urllib.request.urlopen(f"{API}?{q}", timeout=90) as r:
-                raw = r.read().decode("utf-8", errors="replace")
-        except urllib.error.HTTPError as e:  # 키가 담긴 URL은 출력하지 않음
-            body = e.read().decode("utf-8", errors="replace")
-            m = re.search(r'"returnAuthMsg"\s*:\s*"([^"]+)"', body) or re.search(r"<returnAuthMsg>([^<]+)<", body)
-            raise CapError(f"HTTP {e.code}" + (f" {m.group(1)}" if m else "")) from None
-        except urllib.error.URLError as e:
-            raise CapError(f"접속 실패: {e.reason}") from None
+            raw = fetch(f"{API}?{q}", timeout=90)
+        except PortalError as e:
+            raise CapError(str(e)) from None
         finally:
             time.sleep(0.2)
         try:
