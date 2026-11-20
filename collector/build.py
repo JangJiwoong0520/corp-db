@@ -60,6 +60,10 @@ def days_since(iso: str | None, today: dt.date) -> int:
     return (today - dt.date.fromisoformat(iso[:10])).days
 
 
+class TimeUp(Exception):
+    pass
+
+
 class Builder:
     def __init__(self, dart: Dart, corpinfo: CorpInfo | None, today: dt.date):
         self.d = dart
@@ -70,6 +74,7 @@ class Builder:
         self.cos: dict[str, dict] = load("companies.json", {})  # corp_code → 회사 기록(내부용 포함)
         self.events: dict[str, list] = load("events.json", {})  # rcept_no → [corp_code, 날짜, 유형]
         self.ipo: dict[str, dict] = load("ipo_state.json", {})
+        self.deadline: float | None = None
 
     # 1. 상장사 목록
     def universe(self) -> None:
@@ -140,6 +145,8 @@ class Builder:
         filers: dict[str, dict] = {}
         for a, b in windows(start, self.today):
             for r in self.d.search(a, b, pblntf_ty="C", pblntf_detail_ty="C001", corp_cls="E"):
+                if not P.is_equity_registration(r.get("report_nm", "")):  # 일괄신고서·채무증권 등 제외
+                    continue
                 f = filers.setdefault(r["corp_code"], {"n": r.get("corp_name", ""), "first": r["rcept_dt"]})
                 f["first"] = min(f["first"], r["rcept_dt"])
         for code, f in filers.items():
@@ -171,7 +178,7 @@ class Builder:
         # 철회·상장 뒤 60일 지난 건 정리
         for code in list(self.ipo):
             r = self.ipo[code]
-            if code not in filers and days_since(r.get("_upd"), self.today) > 60:
+            if code not in filers and (not r.get("sbd") or days_since(r.get("_upd"), self.today) > 60):
                 del self.ipo[code]
         log(f"- 공모(증권신고서 지분증권, 비상장사): {len(filers)}곳")
 
@@ -193,6 +200,8 @@ class Builder:
         todo = [c for s, c in todo if s < 9]
         done = 0
         for c in todo:
+            if self.deadline and time.time() > self.deadline:
+                raise TimeUp()
             self.detail_one(c)
             done += 1
             if done % 200 == 0:
@@ -342,12 +351,16 @@ def main() -> int:
     today = dt.date.today()
     b = Builder(Dart(key, budget), CorpInfo(gokr) if gokr else None, today)
     t0 = time.time()
+    b.deadline = t0 + int(os.environ.get("MAX_MINUTES", "230")) * 60
     steps = [b.universe, b.financials, b.scan_events, b.scan_ipo, b.details]
     for step in steps:
         try:
             step()
         except BudgetExceeded:
             log(f"- 오늘 호출 예산({budget:,}회)을 다 써서 여기까지 하고 다음 실행 때 이어서 합니다")
+            break
+        except TimeUp:
+            log("- 실행 시간이 길어져 여기까지 저장하고 다음 실행 때 이어서 합니다")
             break
         except DartError as e:
             log(f"- ⚠️ {step.__name__} 중 오류: {e} (다음 단계로 넘어감)")

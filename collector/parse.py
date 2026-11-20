@@ -241,3 +241,9 @@ def region(addr: str) -> str | None:
         if first.startswith(k):
             return v
     return first[:4] or None
+
+
+def is_equity_registration(report_nm: str) -> bool:
+    """공모 대상: 증권신고서(지분증권) 계열만 (일괄신고서·채무증권·투자계약증권 등 제외)"""
+    n = norm(report_nm)
+    return "증권신고서(지분증권)" in n or "투자설명서" == n.split("]")[-1]

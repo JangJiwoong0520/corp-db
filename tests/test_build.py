@@ -34,7 +34,10 @@ class FakeDart:
         if p.get("pblntf_ty") == "B":
             return [{"rcept_no": "20260101000001", "corp_code": "90000001", "rcept_dt": "20260101", "report_nm": "주요사항보고서(전환사채권발행결정)"}]
         if p.get("pblntf_ty") == "C":
-            return [{"corp_code": "80000001", "corp_name": "가상공모", "rcept_dt": "20261101"}]
+            return [
+                {"corp_code": "80000001", "corp_name": "가상공모", "rcept_dt": "20261101", "report_nm": "증권신고서(지분증권)"},
+                {"corp_code": "80000002", "corp_name": "가상캐피탈", "rcept_dt": "20261101", "report_nm": "[기재정정]일괄신고서"},
+            ]
         return []
 
     def rows(self, path, **p):
@@ -88,6 +91,7 @@ class BuildTest(unittest.TestCase):
         self.assertEqual(one["mz"], [1, 50, "20260101"])
         self.assertTrue(all(not k.startswith("_") for r in listed for k in r))
         ipo = build.load("ipo.json", [])
+        self.assertEqual([r["n"] for r in ipo], ["가상공모"])  # 일괄신고서 회사는 제외
         self.assertEqual(ipo[0]["stage"], "수요예측")
         self.assertEqual(ipo[0]["total"], 200)
         self.assertEqual(ipo[0]["lead"], ["가상증권"])

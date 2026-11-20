@@ -85,6 +85,13 @@ class ParseTest(unittest.TestCase):
         self.assertEqual(P.ipo_stage(t, [], True, sbd), "상장")
         self.assertEqual(P.ipo_stage(t, ["증권신고서(지분증권)"], False, []), "증권신고서")
 
+    def test_equity_registration(self):
+        self.assertTrue(P.is_equity_registration("증권신고서(지분증권)"))
+        self.assertTrue(P.is_equity_registration("[발행조건확정]증권신고서(지분증권)"))
+        self.assertFalse(P.is_equity_registration("[기재정정]일괄신고서"))
+        self.assertFalse(P.is_equity_registration("증권신고서(채무증권)"))
+        self.assertFalse(P.is_equity_registration("증권신고서(투자계약증권)"))
+
     def test_region(self):
         self.assertEqual(P.region("서울특별시 가상구 가상로 1"), "서울")
         self.assertEqual(P.region("충청남도 가상시"), "충남")
