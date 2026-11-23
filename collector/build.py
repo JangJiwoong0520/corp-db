@@ -29,7 +29,7 @@ ANNUAL = "11011"
 MARKETS = {"Y": "코스피", "K": "코스닥", "N": "코넥스"}
 HOLDER_VERSION = 2  # 최대주주 지분 계산 방식 버전
 COMPANY_VERSION = 2  # 기업개황에서 받는 항목 버전 (2: 홈페이지·IR·대표번호 추가)
-LST_VERSION = 2  # 상장 예정일 읽는 방식 버전 (2: 청약·납입일 뒤 날짜만 인정)
+LST_VERSION = 3  # 상장 예정일 읽는 방식 버전 (2: 청약·납입일 뒤 날짜만 인정, 3: 본문 먼저·일정표 형식)
 
 log_lines: list[str] = []
 
@@ -243,6 +243,21 @@ class Builder:
                         break
                 rec["_lsrc"] = src
                 rec["_lsv"] = LST_VERSION
+            rec["_upd"] = self.today.isoformat()
+        # 검색에서 빠진 진행 중 회사(상장하면 비상장 검색에서 빠짐) → 기업개황만 다시 확인해 상장 여부 반영
+        for code, rec in self.ipo.items():
+            if code in filers or rec.get("listed") or days_since(rec.get("_upd"), self.today) < 1:
+                continue
+            if any("철회" in x[1] for x in rec.get("reports") or []):
+                continue
+            try:
+                info = self.d.get("company.json", corp_code=code)
+            except DartError:
+                continue
+            rec["cls"] = info.get("corp_cls")
+            rec["listed"] = info.get("corp_cls") in MARKETS
+            rec["stock"] = info.get("stock_code") or rec.get("stock") or ""
+            rec.update(P.contacts(info))
             rec["_upd"] = self.today.isoformat()
         # 공모주가 아닌 기록(예전 기준으로 들어온 일괄신고서 등)과 철회·상장 뒤 60일 지난 건 정리
         for code in list(self.ipo):

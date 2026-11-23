@@ -90,7 +90,13 @@ class Dart:
             return ""
         out = []
         with zipfile.ZipFile(io.BytesIO(raw)) as zf:
-            for name in sorted(zf.namelist(), key=lambda n: zf.getinfo(n).file_size, reverse=True)[:3]:
+            # 본문(접수번호.xml)을 먼저, 첨부(감사보고서 등, 이름에 _ 붙음)는 그 뒤에 큰 것부터 — 합계 12MB까지
+            names = sorted(zf.namelist(), key=lambda n: ("_" in n.rsplit("/", 1)[-1], -zf.getinfo(n).file_size))
+            total = 0
+            for name in names:
+                total += zf.getinfo(name).file_size
+                if out and total > 12_000_000:
+                    break
                 data = zf.read(name)
                 for enc in ("utf-8", "euc-kr", "cp949"):
                     try:
