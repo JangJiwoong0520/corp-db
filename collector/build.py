@@ -28,6 +28,8 @@ DATA = ROOT / "data"
 ANNUAL = "11011"
 MARKETS = {"Y": "코스피", "K": "코스닥", "N": "코넥스"}
 HOLDER_VERSION = 2  # 최대주주 지분 계산 방식 버전
+COMPANY_VERSION = 2  # 기업개황에서 받는 항목 버전 (2: 홈페이지·IR·대표번호 추가)
+LST_VERSION = 2  # 상장 예정일 읽는 방식 버전 (2: 청약·납입일 뒤 날짜만 인정)
 
 log_lines: list[str] = []
 
@@ -199,7 +201,7 @@ class Builder:
         for code, f in filers.items():
             rec = self.ipo.setdefault(code, {})
             rec.update(n=f["n"], first=f["first"])
-            if days_since(rec.get("_upd"), self.today) < 1:
+            if days_since(rec.get("_upd"), self.today) < 1 and rec.get("_lsrc") and rec.get("_lsv") == LST_VERSION:
                 continue
             reps = self.d.rows("list.json", corp_code=code, bgn_de=f["first"], pblntf_ty="C", page_count=100)
             rec["reports"] = [[r["rcept_dt"], r["report_nm"], r["rcept_no"]] for r in reps]
@@ -209,6 +211,7 @@ class Builder:
             rec["stock"] = info.get("stock_code") or ""
             rec["ceo"] = info.get("ceo_nm")
             rec["ind_code"] = info.get("induty_code")
+            rec.update(P.contacts(info))
             data = self.d.get("estkRs.json", corp_code=code, bgn_de=f["first"], end_de=self.today.strftime("%Y%m%d"))
             groups = {g.get("title"): g.get("list") or [] for g in data.get("group", [])} if data else {}
             gen = (groups.get("일반사항") or [{}])[-1]
@@ -222,20 +225,30 @@ class Builder:
             leads = [u.get("actnmn", "").strip() for u in under if "대표" in (u.get("actsen") or "")]
             rec["lead"] = sorted(set(x for x in leads if x)) or sorted(set(u.get("actnmn", "").strip() for u in under if u.get("actnmn")))[:3]
             # 상장 예정일: 최근 투자설명서(없으면 증권신고서) 원문에서, 그 공시가 바뀔 때만 다시 읽음
-            docs = [x for x in rec["reports"] if "투자설명서" in x[1]] or [x for x in rec["reports"] if P.is_equity_registration(x[1])]
-            if docs:
-                src = max(docs, key=lambda x: x[0])[2]
-                if rec.get("_lsrc") != src:
+            prosp = sorted((x for x in rec["reports"] if "투자설명서" in x[1] and "일괄" not in x[1]), key=lambda x: x[0], reverse=True)
+            regs = sorted((x for x in rec["reports"] if P.is_equity_registration(x[1])), key=lambda x: x[0], reverse=True)
+            docs = prosp[:1] + regs[:1]
+            src = ",".join(x[2] for x in docs)
+            floor = P.listing_floor(rec["sbd"], rec["pymd"], f["first"])
+            if rec.get("lst") and not P.listing_ok(rec["lst"], floor):
+                rec["lst"] = None  # 예전 방식으로 잘못 읽은 날짜
+            if docs and (rec.get("_lsrc") != src or rec.get("_lsv") != LST_VERSION):
+                for x in docs:  # 투자설명서 → 없거나 날짜가 없으면 증권신고서
                     try:
-                        rec["lst"] = P.listing_date(self.d.document_text(src)) or rec.get("lst")
+                        found = P.listing_date(self.d.document_text(x[2]), floor)
                     except DartError:
-                        pass
-                    rec["_lsrc"] = src
+                        found = None
+                    if found:
+                        rec["lst"] = found
+                        break
+                rec["_lsrc"] = src
+                rec["_lsv"] = LST_VERSION
             rec["_upd"] = self.today.isoformat()
-        # 철회·상장 뒤 60일 지난 건 정리
+        # 공모주가 아닌 기록(예전 기준으로 들어온 일괄신고서 등)과 철회·상장 뒤 60일 지난 건 정리
         for code in list(self.ipo):
             r = self.ipo[code]
-            if code not in filers and (not r.get("sbd") or days_since(r.get("_upd"), self.today) > 60):
+            not_ipo = r.get("reports") is not None and not any(P.is_equity_registration(x[1]) for x in r["reports"])
+            if not_ipo or (code not in filers and (not r.get("sbd") or days_since(r.get("_upd"), self.today) > 60)):
                 del self.ipo[code]
         log(f"- 공모(증권신고서 지분증권, 비상장사): {len(filers)}곳")
 
@@ -247,7 +260,7 @@ class Builder:
             r = self.cos[c]
             if r.get("_per") != self.fy and (days_since(r.get("_per_try"), self.today) >= 30 or self.can_use_quarter(r)):
                 return 0
-            if days_since(r.get("_co"), self.today) > 120:
+            if days_since(r.get("_co"), self.today) > 120 or r.get("_cov") != COMPANY_VERSION:
                 return 1
             if self.needs_holder_fix(r):
                 return 3
@@ -283,7 +296,7 @@ class Builder:
 
     def detail_one(self, c: str) -> None:
         r = self.cos[c]
-        if days_since(r.get("_co"), self.today) > 120:
+        if days_since(r.get("_co"), self.today) > 120 or r.get("_cov") != COMPANY_VERSION:
             info = self.d.get("company.json", corp_code=c)
             if info:
                 r.update(
@@ -293,8 +306,10 @@ class Builder:
                     reg=P.region(info.get("adres")),
                     ind_code=info.get("induty_code"),
                     _crno=info.get("jurir_no"),
+                    **P.contacts(info),
                 )
             r["_co"] = self.today.isoformat()
+            r["_cov"] = COMPANY_VERSION
         if self.ci and r.get("_crno") and days_since(r.get("_ind"), self.today) > 180:
             try:
                 r["ind"] = self.ci.industry(r["_crno"]) or r.get("ind")
@@ -403,13 +418,17 @@ class Builder:
         ipo_rows = []
         for c, r in self.ipo.items():
             names = [x[1] for x in r.get("reports", [])]
-            stage = P.ipo_stage(self.today, names, bool(r.get("listed")), r.get("sbd") or [], r.get("lst"))
+            if names and not any(P.is_equity_registration(n) for n in names):
+                continue
+            floor = P.listing_floor(r.get("sbd"), r.get("pymd"), r.get("first"))
+            lst = r.get("lst") if P.listing_ok(r.get("lst"), floor) else None
+            stage = P.ipo_stage(self.today, names, bool(r.get("listed")), r.get("sbd") or [], lst)
             last = max(r.get("reports") or [["", "", ""]], key=lambda x: x[0])
             ipo_rows.append({
                 "c": c, "n": r.get("n"), "stage": stage, "first": r.get("first"), "sbd": r.get("sbd"),
                 "pymd": r.get("pymd"), "price": r.get("price"), "total": r.get("total"), "lead": r.get("lead"),
                 "ceo": r.get("ceo"), "s": r.get("stock"), "spac": ("스팩" in (r.get("n") or "")) or ("기업인수목적" in (r.get("n") or "")),
-                "lst": r.get("lst"), "rc": last[2], "reports": sorted(r.get("reports") or [], reverse=True)[:8],
+                "lst": lst, "hm": r.get("hm"), "ir": r.get("ir"), "tel": r.get("tel"), "rc": last[2], "reports": sorted(r.get("reports") or [], reverse=True)[:8],
             })
         ipo_rows.sort(key=lambda x: (x.get("sbd") or ["9999"])[0])
         save("ipo.json", ipo_rows)

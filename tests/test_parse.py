@@ -124,12 +124,26 @@ class ParseTest(unittest.TestCase):
         self.assertFalse(P.is_equity_registration("[기재정정]일괄신고서"))
         self.assertFalse(P.is_equity_registration("증권신고서(채무증권)"))
         self.assertFalse(P.is_equity_registration("증권신고서(투자계약증권)"))
+        self.assertFalse(P.is_equity_registration("투자설명서"))
+        self.assertFalse(P.is_equity_registration("증권신고서(합병)"))
+
+    def test_contacts(self):
+        c = P.contacts({"hm_url": "www.gasang.example", "ir_url": "https://ir.gasang.example", "phn_no": "02-000-0000"})
+        self.assertEqual(c, {"hm": "http://www.gasang.example", "ir": "https://ir.gasang.example", "tel": "02-000-0000"})
+        self.assertEqual(P.contacts({"hm_url": "-", "phn_no": ""}), {"hm": None, "ir": None, "tel": None})
 
     def test_listing_date(self):
         doc = "<P>청약기일 2026년 11월 20일</P><TD>상장 예정일</TD><TD>2026년 12월 3일</TD>"
         self.assertEqual(P.listing_date(doc), "2026-12-03")
         self.assertEqual(P.listing_date("<p>매매개시 예정일 : 2026.12.10</p>"), "2026-12-10")
         self.assertIsNone(P.listing_date("<p>상장예정일은 추후 확정됩니다</p>"))
+        # 원문 속 과거 날짜(다른 회사 사례 등)는 상장일로 보지 않음
+        old_case = "<td>상장일</td><td>2024년 3월 26일</td><p>매매개시 예정일 2026.12.17</p>"
+        self.assertEqual(P.listing_date(old_case, "2026-12-09"), "2026-12-17")
+        self.assertIsNone(P.listing_date("<td>상장일</td><td>2024년 3월 26일</td>", "2026-12-09"))
+        self.assertIsNone(P.listing_date("<td>상장예정일</td><td>2027년 3월 23일</td>", "2026-12-03"))  # 너무 먼 날짜
+        self.assertEqual(P.listing_floor(["2026-12-07", "2026-12-08"], "2026-12-10", "20261021"), "2026-12-09")
+        self.assertEqual(P.listing_floor([], None, "20261021"), "2026-10-21")
 
     def test_region(self):
         self.assertEqual(P.region("서울특별시 가상구 가상로 1"), "서울")

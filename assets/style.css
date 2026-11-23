@@ -248,3 +248,76 @@ tbody tr:hover { background: #f1f8f3; }
 .cal .ev.lst { background: var(--ri); color: #fff; }
 .tagx.lst { background: color-mix(in srgb, var(--ri) 14%, transparent); color: var(--ri); }
 td.lstc { font-weight: 700; color: var(--ink); }
+
+/* ── 공모 탭: 검색 · 스팩 토글 (2026-11-23) ── */
+.ipo-tools { margin-top: 22px; }
+.toggle { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 999px; padding: 8px 14px 8px 8px; font-size: 13px; font-weight: 600; cursor: pointer; box-shadow: var(--shadow); }
+.toggle .sw { width: 30px; height: 18px; border-radius: 999px; background: var(--line); position: relative; transition: background .15s; flex: none; }
+.toggle .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: left .15s; }
+.toggle[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.toggle[aria-pressed="true"] .sw { background: var(--accent); }
+.toggle[aria-pressed="true"] .sw::after { left: 14px; }
+#ipo-count:empty { display: none; }
+
+/* ── 회사별 진행 단계 (리커트 척도처럼) ── */
+.steps { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); min-width: 200px; }
+.steps li { position: relative; text-align: center; font-size: 10.5px; color: var(--faint); line-height: 1.2; }
+.steps li::before { content: ""; position: absolute; top: 5px; left: -50%; width: 100%; height: 2px; background: var(--line); }
+.steps li:first-child::before { display: none; }
+.steps li.done::before, .steps li.cur::before, .steps li.next::before { background: var(--accent); }
+.steps li.next::before { background: linear-gradient(90deg, var(--accent), var(--accent) 50%, var(--line) 50%) ; background-size: 6px 2px; }
+.steps i { position: relative; z-index: 1; display: block; width: 12px; height: 12px; margin: 0 auto 4px; border-radius: 50%; background: var(--panel); border: 2px solid var(--line); box-sizing: border-box; }
+.steps li.done i { background: var(--accent); border-color: var(--accent); }
+.steps li.cur i { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.steps li.next i { border-color: var(--accent); border-style: dashed; }
+.steps li.done span { color: var(--muted); }
+.steps li.cur span, .steps li.next span { color: var(--accent); font-weight: 800; }
+.steps.off { opacity: .45; filter: grayscale(1); }
+.steps.big { margin: 0; padding: 14px 0 10px; }
+.steps.big li { font-size: 12.5px; font-weight: 600; }
+.steps.big i { width: 18px; height: 18px; margin-bottom: 6px; }
+.steps.big li::before { top: 8px; height: 3px; }
+.steps.big small { display: block; margin-top: 3px; font-size: 11.5px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.steps-panel { margin-top: 18px; padding: 4px 8px; }
+td.stc { min-width: 220px; }
+td.stc .stage { margin-bottom: 2px; }
+td.nw, .metric b { white-space: nowrap; }
+.card .steps { margin: 12px 0 2px; }
+a.lk { color: var(--accent); text-decoration: none; word-break: break-all; }
+a.lk:hover { text-decoration: underline; }
+
+/* ── 월간 캘린더: 주 단위 막대 ── */
+.cal { --dh: 24px; --lh: 21px; display: block; background: none; border: 1px solid var(--line-2); border-radius: 10px; overflow: hidden; }
+.cal-dow { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); background: var(--panel); border-bottom: 1px solid var(--line-2); }
+.cal-dow span { text-align: center; font-size: 11px; font-weight: 700; color: var(--muted); padding: 6px 0; }
+.cal-dow span:first-child { color: var(--red); }
+.cal .wk { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); min-height: 84px; row-gap: 2px; border-bottom: 1px solid var(--line-2); }
+.cal .wk:last-child { border-bottom: 0; }
+.cal .cell { grid-row: 1 / -1; background: var(--panel); border-right: 1px solid var(--line-2); padding: 4px 6px; min-width: 0; }
+.cal .cell:nth-child(7) { border-right: 0; }
+.cal .cell.out { background: var(--bg); }
+.cal .cell.out .d { color: var(--faint); font-weight: 500; }
+.cal .cell .d { font-weight: 700; color: var(--muted); font-size: 11.5px; }
+.cal .cell.sun .d { color: var(--red); }
+.cal .cell.today .d { background: var(--accent); color: #fff; border-radius: 999px; padding: 1px 6px; }
+.cal .bar { position: relative; z-index: 1; margin: 0 4px; min-width: 0; border: 0; border-radius: 5px; padding: 0 6px; font: inherit; font-size: 11px; font-weight: 700; line-height: var(--lh); height: var(--lh); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; background: var(--accent); color: #fff; }
+.cal .bar.pay { background: var(--line-2); color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
+.cal .bar.lst { background: var(--ri); color: #fff; }
+.cal .bar.cl { margin-left: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.cal .bar.cr { margin-right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.cal .bar:hover { filter: brightness(1.08); }
+:root[data-theme="dark"] .cal .bar.sub { color: #0c1310; }
+.upcoming li.ing .d { color: var(--accent); }
+.upcoming li { grid-template-columns: 128px 64px 1fr auto; }
+.upcoming .d { white-space: nowrap; }
+@media (max-width: 760px) {
+  .cal .wk { min-height: 58px; }
+  .cal .cell { padding: 3px; }
+  .cal .bar { margin: 0 2px; padding: 0 3px; font-size: 9.5px; border-radius: 4px; }
+  .cal { --dh: 20px; --lh: 17px; }
+  .cal .bar .pre { display: none; }
+  .upcoming li { grid-template-columns: 76px 52px 1fr; }
+  .upcoming .d small { display: block; margin-left: 0; }
+  .steps { min-width: 0; }
+  .toggle { flex: none; }
+}

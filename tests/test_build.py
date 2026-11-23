@@ -38,6 +38,7 @@ class FakeDart:
             return [
                 {"corp_code": "80000001", "corp_name": "가상공모", "rcept_dt": "20261101", "report_nm": "증권신고서(지분증권)"},
                 {"corp_code": "80000002", "corp_name": "가상캐피탈", "rcept_dt": "20261101", "report_nm": "[기재정정]일괄신고서"},
+                {"corp_code": "80000003", "corp_name": "가상증권사", "rcept_dt": "20261102", "report_nm": "투자설명서"},
             ]
         return []
 
@@ -65,7 +66,8 @@ class FakeDart:
     def get(self, path, **p):
         self.tick()
         if path == "company.json":
-            return {"ceo_nm": "김가상", "corp_cls": "E" if p["corp_code"].startswith("8") else "K", "adres": "서울특별시 가상구", "jurir_no": "1101110000000"}
+            return {"ceo_nm": "김가상", "corp_cls": "E" if p["corp_code"].startswith("8") else "K", "adres": "서울특별시 가상구", "jurir_no": "1101110000000",
+                    "hm_url": "www.gasang.example", "ir_url": "", "phn_no": "02-000-0000"}
         if path == "estkRs.json":
             return {"group": [
                 {"title": "일반사항", "list": [{"sbd": "2026년 11월 20일 ~ 2026년 11월 21일", "pymd": "2026년 11월 25일"}]},
@@ -85,6 +87,8 @@ class BuildTest(unittest.TestCase):
 
     def test_full_run(self):
         b = build.Builder(FakeDart(), None, TODAY)
+        # 예전 기준으로 들어온 공모주 아닌 기록은 정리돼야 함
+        b.ipo["80000009"] = {"n": "가상카드", "reports": [["20261101", "투자설명서", "x"]], "sbd": ["2026-11-01"], "_upd": "2026-11-17"}
         for step in (b.universe, b.financials, b.scan_events, b.scan_ipo, b.details):
             step()
         b.save_all()
@@ -109,6 +113,9 @@ class BuildTest(unittest.TestCase):
         self.assertEqual(ipo[0]["lst"], "2026-12-03")
         self.assertEqual(ipo[0]["total"], 200)
         self.assertEqual(ipo[0]["lead"], ["가상증권"])
+        self.assertEqual((ipo[0]["hm"], ipo[0]["ir"], ipo[0]["tel"]), ("http://www.gasang.example", None, "02-000-0000"))
+        self.assertNotIn("80000009", b.ipo)
+        self.assertEqual(one["tel"], "02-000-0000")
 
     def test_holder_fix_for_old_records(self):
         b = build.Builder(FakeDart(n=1100), None, TODAY)

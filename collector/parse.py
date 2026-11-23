@@ -247,9 +247,8 @@ def region(addr: str) -> str | None:
 
 
 def is_equity_registration(report_nm: str) -> bool:
-    """공모 대상: 증권신고서(지분증권) 계열만 (일괄신고서·채무증권·투자계약증권 등 제외)"""
-    n = norm(report_nm)
-    return "증권신고서(지분증권)" in n or "투자설명서" == n.split("]")[-1]
+    """공모주 판단: 증권신고서(지분증권)만 (투자설명서·일괄신고서·채무증권·투자계약증권·합병·분할 등 제외)"""
+    return "증권신고서(지분증권)" in norm(report_nm)
 
 
 REPORT_CODES = {3: "11013", 6: "11012", 9: "11014", 12: "11011"}
@@ -286,14 +285,49 @@ def html_text(doc: str) -> str:
     return re.sub(r"\s+", " ", _html.unescape(t))
 
 
-def listing_date(doc: str) -> str | None:
-    """증권신고서·투자설명서 원문에서 상장(매매개시) 예정일. 날짜가 정해져 있지 않으면 None"""
+def listing_ok(d: str | None, after: str | None, days: int = 45) -> bool:
+    """상장일 후보가 그럴듯한지: after(청약·납입 기준일)보다 뒤이고 45일 안"""
+    if not d:
+        return False
+    if not after:
+        return True
+    return after < d <= (dt.date.fromisoformat(after) + dt.timedelta(days=days)).isoformat()
+
+
+def listing_date(doc: str, after: str | None = None) -> str | None:
+    """증권신고서·투자설명서 원문에서 상장(매매개시) 예정일. 날짜가 정해져 있지 않으면 None
+    after: 이 날짜(YYYY-MM-DD) 뒤 45일 안의 날짜만 인정 (원문 속 과거 사례·보호예수 날짜 등을 잘못 읽지 않게)"""
     text = html_text(doc)
     flat = text.replace(" ", "")
     for key in LISTING_KEYS:
         for m in re.finditer(re.escape(key), flat):
             seg = flat[m.end(): m.end() + 40]
-            ds = dates_in(seg)
+            ds = [d for d in dates_in(seg)[:1] if listing_ok(d, after)]
             if ds:
                 return ds[0]
     return None
+
+
+def listing_floor(sbd: list[str] | None, pymd: str | None, first: str | None) -> str | None:
+    """상장일은 이 날짜보다 뒤여야 함: 청약 마지막 날, 납입일 전날, (둘 다 없으면) 신고서 제출일"""
+    cands = []
+    if sbd:
+        cands.append(sbd[-1])
+    if pymd:
+        cands.append((dt.date.fromisoformat(pymd) - dt.timedelta(days=1)).isoformat())
+    if not cands and first and len(first) == 8:
+        cands.append(f"{first[:4]}-{first[4:6]}-{first[6:]}")
+    return max(cands) if cands else None
+
+
+def _url(u: str | None) -> str | None:
+    u = (u or "").strip()
+    if not u or u in ("-", "없음"):
+        return None
+    return u if u.startswith(("http://", "https://")) else "http://" + u
+
+
+def contacts(info: dict) -> dict:
+    """DART 기업개황 → 홈페이지·IR 페이지·대표번호"""
+    tel = (info.get("phn_no") or "").strip()
+    return {"hm": _url(info.get("hm_url")), "ir": _url(info.get("ir_url")), "tel": tel if tel and tel != "-" else None}
