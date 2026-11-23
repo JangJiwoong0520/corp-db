@@ -4,6 +4,8 @@ on:
   schedule:
     # 매일 한국시간 05:43 (UTC 20:43) — CRM 자동화(07:17)보다 먼저
     - cron: "43 20 * * *"
+    # 오후 2시 43분(한국시간) 한 번 더 — 시세는 전 영업일 값이 오후 1시 이후에 올라옴
+    - cron: "43 5 * * 1-5"
   workflow_dispatch:
     inputs:
       budget:

@@ -242,3 +242,9 @@ tbody tr:hover { background: #f1f8f3; }
 :root[data-theme="dark"] .seg button[aria-pressed="true"], :root[data-theme="dark"] .sec span { color: #0c1310; }
 :root[data-theme="dark"] .tabs button[aria-selected="true"] { color: #0f2a1c; }
 :root[data-theme="dark"] .pager button[aria-current="true"], :root[data-theme="dark"] .stage.s-청약중 { color: #0c1310; }
+
+/* 상장 예정일 */
+.lg.lst { background: var(--ri); margin-left: 8px; }
+.cal .ev.lst { background: var(--ri); color: #fff; }
+.tagx.lst { background: color-mix(in srgb, var(--ri) 14%, transparent); color: var(--ri); }
+td.lstc { font-weight: 700; color: var(--ink); }

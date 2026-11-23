@@ -115,6 +115,8 @@ class ParseTest(unittest.TestCase):
         self.assertEqual(P.ipo_stage(t, ["철회신고서"], False, sbd), "철회")
         self.assertEqual(P.ipo_stage(t, [], True, sbd), "상장")
         self.assertEqual(P.ipo_stage(t, ["증권신고서(지분증권)"], False, []), "증권신고서")
+        self.assertEqual(P.ipo_stage(dt.date(2026, 12, 3), ["증권발행실적보고서"], False, sbd, "2026-12-03"), "상장")
+        self.assertEqual(P.ipo_stage(dt.date(2026, 12, 2), ["증권발행실적보고서"], False, sbd, "2026-12-03"), "납입·상장대기")
 
     def test_equity_registration(self):
         self.assertTrue(P.is_equity_registration("증권신고서(지분증권)"))
@@ -122,6 +124,12 @@ class ParseTest(unittest.TestCase):
         self.assertFalse(P.is_equity_registration("[기재정정]일괄신고서"))
         self.assertFalse(P.is_equity_registration("증권신고서(채무증권)"))
         self.assertFalse(P.is_equity_registration("증권신고서(투자계약증권)"))
+
+    def test_listing_date(self):
+        doc = "<P>청약기일 2026년 11월 20일</P><TD>상장 예정일</TD><TD>2026년 12월 3일</TD>"
+        self.assertEqual(P.listing_date(doc), "2026-12-03")
+        self.assertEqual(P.listing_date("<p>매매개시 예정일 : 2026.12.10</p>"), "2026-12-10")
+        self.assertIsNone(P.listing_date("<p>상장예정일은 추후 확정됩니다</p>"))
 
     def test_region(self):
         self.assertEqual(P.region("서울특별시 가상구 가상로 1"), "서울")

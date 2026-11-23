@@ -213,11 +213,11 @@ def dates_in(s: str) -> list[str]:
     return out
 
 
-def ipo_stage(today: dt.date, reports: list[str], listed: bool, sbd: list[str]) -> str:
+def ipo_stage(today: dt.date, reports: list[str], listed: bool, sbd: list[str], lst: str | None = None) -> str:
     names = [norm(r) for r in reports]
     if any("철회" in n for n in names):
         return "철회"
-    if listed:
+    if listed or (lst and today.isoformat() >= lst):
         return "상장"
     if any("증권발행실적보고서" in n for n in names):
         return "납입·상장대기"
@@ -274,3 +274,26 @@ def report_period(report_nm: str) -> tuple[int, str] | None:
 def period_label(year: int, code: str) -> str:
     lab = REPORT_LABEL.get(code, "")
     return f"{year} 사업보고서" if code == "11011" else f"{year} {lab} 보고서"
+
+
+LISTING_KEYS = ("상장예정일", "매매개시예정일", "상장(예정)일", "매매개시일", "신규상장예정일", "상장일")
+
+
+def html_text(doc: str) -> str:
+    import html as _html
+    t = re.sub(r"(?is)<(script|style).*?</\1>", " ", doc or "")
+    t = re.sub(r"<[^>]+>", " ", t)
+    return re.sub(r"\s+", " ", _html.unescape(t))
+
+
+def listing_date(doc: str) -> str | None:
+    """증권신고서·투자설명서 원문에서 상장(매매개시) 예정일. 날짜가 정해져 있지 않으면 None"""
+    text = html_text(doc)
+    flat = text.replace(" ", "")
+    for key in LISTING_KEYS:
+        for m in re.finditer(re.escape(key), flat):
+            seg = flat[m.end(): m.end() + 40]
+            ds = dates_in(seg)
+            if ds:
+                return ds[0]
+    return None

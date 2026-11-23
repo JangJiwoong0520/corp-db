@@ -247,6 +247,7 @@
   const pad = (n) => String(n).padStart(2, "0");
   const keyOf = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const DOW = ["일", "월", "화", "수", "목", "금", "토"];
+  const EVL = { sub: "청약", pay: "납입", lst: "상장" };
 
   function ipoEvents(rows) {
     const evs = [];
@@ -257,6 +258,7 @@
         for (let i = 0; d <= end && i < 10; i++, d.setDate(d.getDate() + 1)) evs.push([keyOf(d), "sub", r]);
       }
       if (r.pymd) evs.push([r.pymd, "pay", r]);
+      if (r.lst) evs.push([r.lst, "lst", r]);
     });
     return evs;
   }
@@ -272,17 +274,17 @@
     const up = evs.filter(([k, t, r]) => { const d = new Date(k); const id = t + r.c; if (d < today || d > until || seen.has(id)) return false; seen.add(id); return true; })
       .sort((a, b) => a[0].localeCompare(b[0]));
     $("#upcoming").innerHTML = up.map(([k, t, r]) => { const d = new Date(k);
-      return `<li data-c="${esc(r.c)}"><span class="d">${k.slice(5).replace("-", ".")}<small>${DOW[d.getDay()]}</small></span><span class="tagx ${t}">${t === "sub" ? "청약" : "납입"}</span><span class="n">${esc(r.n)}</span><span class="x">${r.price ? fmt(r.price) + "원" : ""}${r.total ? " · " + won(r.total) : ""}</span></li>`; }).join("")
+      return `<li data-c="${esc(r.c)}"><span class="d">${k.slice(5).replace("-", ".")}<small>${DOW[d.getDay()]}</small></span><span class="tagx ${t}">${EVL[t]}</span><span class="n">${esc(r.n)}</span><span class="x">${r.price ? fmt(r.price) + "원" : ""}${r.total ? " · " + won(r.total) : ""}</span></li>`; }).join("")
       || '<li><span class="empty">앞으로 14일 안에 청약·납입 일정이 없습니다</span></li>';
 
     renderCal(evs);
     const tr = (r) => `<tr data-c="${esc(r.c)}"><td class="l co"><span class="nm">${esc(r.n)}${r.spac ? ' <span class="mk">스팩</span>' : ""}</span><span class="sub">${esc((r.lead || []).join(", ")) || "&nbsp;"}</span></td>
       <td class="l"><span class="stage s-${esc(r.stage)}">${esc(r.stage)}</span></td><td>${date8(r.first)}</td><td>${(r.sbd || []).map((x) => x.slice(5)).join(" ~ ") || DASH}</td>
-      <td>${r.pymd ? r.pymd.slice(5) : DASH}</td><td>${num(r.price)}</td><td>${has(r.total) ? won(r.total) : DASH}</td></tr>`;
-    $("#t-ipo thead").innerHTML = "<tr><th class='l'>회사 <span class='u'>주관사</span></th><th class='l'>단계</th><th>신고서 제출</th><th>청약일</th><th>납입일</th><th>공모가<span class='u'>원</span></th><th>공모 규모</th></tr>";
-    $("#t-ipo tbody").innerHTML = rows.map(tr).join("") || `<tr><td class="l" colspan="7">선택한 단계의 회사가 없습니다</td></tr>`;
+      <td>${r.pymd ? r.pymd.slice(5) : DASH}</td><td class="lstc">${r.lst ? r.lst.slice(5) : DASH}</td><td>${num(r.price)}</td><td>${has(r.total) ? won(r.total) : DASH}</td></tr>`;
+    $("#t-ipo thead").innerHTML = "<tr><th class='l'>회사 <span class='u'>주관사</span></th><th class='l'>단계</th><th>신고서 제출</th><th>청약일</th><th>납입일</th><th>상장 예정일</th><th>공모가<span class='u'>원</span></th><th>공모 규모</th></tr>";
+    $("#t-ipo tbody").innerHTML = rows.map(tr).join("") || `<tr><td class="l" colspan="8">선택한 단계의 회사가 없습니다</td></tr>`;
     $("#c-ipo").innerHTML = rows.map((r) => `<button class="card" data-c="${esc(r.c)}"><div class="top"><div><div class="nm">${esc(r.n)}</div><div class="sub">${esc((r.lead || []).join(", "))}</div></div><span class="stage s-${esc(r.stage)}">${esc(r.stage)}</span></div>
-      <div class="metrics">${[["청약", (r.sbd || []).map((x) => x.slice(5)).join("~") || "–"], ["납입", r.pymd ? r.pymd.slice(5) : "–"], ["공모가", r.price ? fmt(r.price) : "–"], ["규모", has(r.total) ? won(r.total) : "–"]].map(([a, b]) => `<div class="metric"><span>${a}</span><b>${b}</b></div>`).join("")}</div></button>`).join("")
+      <div class="metrics">${[["청약", (r.sbd || []).map((x) => x.slice(5)).join("~") || "–"], ["상장 예정", r.lst ? r.lst.slice(5) : "–"], ["공모가", r.price ? fmt(r.price) : "–"], ["규모", has(r.total) ? won(r.total) : "–"]].map(([a, b]) => `<div class="metric"><span>${a}</span><b>${b}</b></div>`).join("")}</div></button>`).join("")
       || '<p class="note">선택한 단계의 회사가 없습니다</p>';
   }
   function renderCal(evs) {
@@ -296,7 +298,7 @@
     for (let d = 1; d <= days; d++) {
       const k = `${y}-${pad(m + 1)}-${pad(d)}`;
       h += `<div class="day ${k === todayKey ? "today" : ""}"><span class="d">${d}</span>` +
-        (by[k] || []).map(([t, r]) => `<span class="ev ${t}" data-c="${esc(r.c)}" title="${esc(r.n)} ${t === "sub" ? "청약" : "납입"}">${esc(r.n)}</span>`).join("") + "</div>";
+        (by[k] || []).map(([t, r]) => `<span class="ev ${t}" data-c="${esc(r.c)}" title="${esc(r.n)} ${EVL[t]}">${esc(r.n)}</span>`).join("") + "</div>";
     }
     const tail = (7 - ((first + days) % 7)) % 7;
     for (let i = 0; i < tail; i++) h += '<div class="blank"></div>';
@@ -316,8 +318,8 @@
       <div class="sh-head"><p class="eyebrow">공모 진행 · ${esc(r.stage)}</p><h2>${esc(r.n)}</h2><div class="sub">${esc((r.lead || []).join(", "))}</div></div>
       <div class="sh-body">
         <div class="sh-kpis">${tile("공모가", r.price ? `${fmt(r.price)}원` : "", "모집(매출)가액")}${tile("공모 규모", won(r.total), "모집(매출)총액")}</div>
-        ${sec("01", "일정", kv([["단계", `<span class="stage s-${esc(r.stage)}">${esc(r.stage)}</span>`], ["신고서 제출", date8(r.first)], ["청약일", (r.sbd || []).join(" ~ ")], ["납입일", r.pymd || ""], ["대표", esc(r.ceo)], ["종목코드", esc(r.s)]]))}
-        <p class="note">수요예측 일정·확정 공모가·상장 예정일은 증권신고서/투자설명서 원문에서 확인하세요.</p>
+        ${sec("01", "일정", kv([["단계", `<span class="stage s-${esc(r.stage)}">${esc(r.stage)}</span>`], ["신고서 제출", date8(r.first)], ["청약일", (r.sbd || []).join(" ~ ")], ["납입일", r.pymd || ""], ["상장 예정일", r.lst || "원문 확인"], ["대표", esc(r.ceo)], ["종목코드", esc(r.s)]]))}
+        <p class="note">상장 예정일은 투자설명서(없으면 증권신고서) 원문에서 자동으로 읽은 값입니다. 수요예측 일정·확정 공모가는 원문에서 확인하세요.</p>
         ${sec("02", "관련 공시", reps ? `<div class="panel"><ul class="timeline">${reps}</ul></div>` : '<p class="note">없음</p>')}
       </div>`);
   }

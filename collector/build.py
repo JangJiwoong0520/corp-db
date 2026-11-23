@@ -221,6 +221,16 @@ class Builder:
             rec["total"] = P.eok(k.get("slta"))
             leads = [u.get("actnmn", "").strip() for u in under if "대표" in (u.get("actsen") or "")]
             rec["lead"] = sorted(set(x for x in leads if x)) or sorted(set(u.get("actnmn", "").strip() for u in under if u.get("actnmn")))[:3]
+            # 상장 예정일: 최근 투자설명서(없으면 증권신고서) 원문에서, 그 공시가 바뀔 때만 다시 읽음
+            docs = [x for x in rec["reports"] if "투자설명서" in x[1]] or [x for x in rec["reports"] if P.is_equity_registration(x[1])]
+            if docs:
+                src = max(docs, key=lambda x: x[0])[2]
+                if rec.get("_lsrc") != src:
+                    try:
+                        rec["lst"] = P.listing_date(self.d.document_text(src)) or rec.get("lst")
+                    except DartError:
+                        pass
+                    rec["_lsrc"] = src
             rec["_upd"] = self.today.isoformat()
         # 철회·상장 뒤 60일 지난 건 정리
         for code in list(self.ipo):
@@ -393,13 +403,13 @@ class Builder:
         ipo_rows = []
         for c, r in self.ipo.items():
             names = [x[1] for x in r.get("reports", [])]
-            stage = P.ipo_stage(self.today, names, bool(r.get("listed")), r.get("sbd") or [])
+            stage = P.ipo_stage(self.today, names, bool(r.get("listed")), r.get("sbd") or [], r.get("lst"))
             last = max(r.get("reports") or [["", "", ""]], key=lambda x: x[0])
             ipo_rows.append({
                 "c": c, "n": r.get("n"), "stage": stage, "first": r.get("first"), "sbd": r.get("sbd"),
                 "pymd": r.get("pymd"), "price": r.get("price"), "total": r.get("total"), "lead": r.get("lead"),
                 "ceo": r.get("ceo"), "s": r.get("stock"), "spac": ("스팩" in (r.get("n") or "")) or ("기업인수목적" in (r.get("n") or "")),
-                "rc": last[2], "reports": sorted(r.get("reports") or [], reverse=True)[:8],
+                "lst": r.get("lst"), "rc": last[2], "reports": sorted(r.get("reports") or [], reverse=True)[:8],
             })
         ipo_rows.sort(key=lambda x: (x.get("sbd") or ["9999"])[0])
         save("ipo.json", ipo_rows)

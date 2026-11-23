@@ -83,6 +83,23 @@ class Dart:
             }
         return out
 
+    # ── 공시서류 원본 (document.xml: 접수번호 → ZIP) ──
+    def document_text(self, rcept_no: str) -> str:
+        raw = self._raw("document.xml", {"rcept_no": rcept_no})
+        if not raw.startswith(b"PK"):
+            return ""
+        out = []
+        with zipfile.ZipFile(io.BytesIO(raw)) as zf:
+            for name in sorted(zf.namelist(), key=lambda n: zf.getinfo(n).file_size, reverse=True)[:3]:
+                data = zf.read(name)
+                for enc in ("utf-8", "euc-kr", "cp949"):
+                    try:
+                        out.append(data.decode(enc))
+                        break
+                    except UnicodeDecodeError:
+                        continue
+        return "\n".join(out)
+
     # ── 공시검색 (corp_code 없이는 3개월 제한 → 구간 나눠서) ──
     def search(self, bgn: dt.date, end: dt.date, **params) -> list[dict]:
         out: list[dict] = []

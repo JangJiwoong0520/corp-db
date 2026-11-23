@@ -58,6 +58,10 @@ class FakeDart:
             return [{"rcept_dt": "20261101", "report_nm": "증권신고서(지분증권)", "rcept_no": "20261101000009"}]
         return []
 
+    def document_text(self, rcept_no):
+        self.tick()
+        return "<td>상장예정일</td><td>2026년 12월 3일</td>"
+
     def get(self, path, **p):
         self.tick()
         if path == "company.json":
@@ -102,6 +106,7 @@ class BuildTest(unittest.TestCase):
         ipo = build.load("ipo.json", [])
         self.assertEqual([r["n"] for r in ipo], ["가상공모"])  # 일괄신고서 회사는 제외
         self.assertEqual(ipo[0]["stage"], "수요예측")
+        self.assertEqual(ipo[0]["lst"], "2026-12-03")
         self.assertEqual(ipo[0]["total"], 200)
         self.assertEqual(ipo[0]["lead"], ["가상증권"])
 
