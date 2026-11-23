@@ -285,9 +285,12 @@ def html_text(doc: str) -> str:
     return re.sub(r"\s+", " ", _html.unescape(t))
 
 
-def listing_ok(d: str | None, after: str | None, days: int = 45) -> bool:
-    """상장일 후보가 그럴듯한지: after(청약·납입 기준일)보다 뒤이고 45일 안"""
+def listing_ok(d: str | None, after: str | None, days: int = 30) -> bool:
+    """상장일 후보가 그럴듯한지: after(청약·납입 기준일)보다 뒤이고 30일 안, 거래일(평일, 1/1·12/31 휴장일 제외)"""
     if not d:
+        return False
+    day = dt.date.fromisoformat(d)
+    if day.weekday() >= 5 or d[5:] in ("01-01", "12-31"):
         return False
     if not after:
         return True
@@ -296,7 +299,7 @@ def listing_ok(d: str | None, after: str | None, days: int = 45) -> bool:
 
 def listing_date(doc: str, after: str | None = None) -> str | None:
     """증권신고서·투자설명서 원문에서 상장(매매개시) 예정일. 날짜가 정해져 있지 않으면 None
-    after: 이 날짜(YYYY-MM-DD) 뒤 45일 안의 날짜만 인정 (원문 속 과거 사례·보호예수 날짜 등을 잘못 읽지 않게)"""
+    after: 이 날짜(YYYY-MM-DD) 뒤 30일 안의 거래일만 인정 (원문 속 과거 사례·보호예수 날짜 등을 잘못 읽지 않게)"""
     text = html_text(doc)
     flat = text.replace(" ", "")
     # 1) "상장예정일 : 2026년 12월 3일" 처럼 날짜가 뒤에 오는 경우

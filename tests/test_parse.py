@@ -145,6 +145,8 @@ class ParseTest(unittest.TestCase):
         table = "<tr><td>2026년 12월 10일</td><td>납입 및 환불</td></tr><tr><td>2026년 12월 17일</td><td>상장 예정</td></tr>"
         self.assertEqual(P.listing_date(table, "2026-12-10"), "2026-12-17")
         self.assertIsNone(P.listing_date("<td>상장예정일</td><td>2027년 3월 23일</td>", "2026-12-03"))  # 너무 먼 날짜
+        self.assertIsNone(P.listing_date("<p>상장 2027년 1월 1일</p>", "2026-12-21"))  # 휴장일(1/1)
+        self.assertIsNone(P.listing_date("<p>상장예정일 2026년 12월 19일</p>", "2026-12-10"))  # 토요일
         self.assertEqual(P.listing_floor(["2026-12-07", "2026-12-08"], "2026-12-10", "20261021"), "2026-12-10")
         self.assertEqual(P.listing_floor([], None, "20261021"), "2026-10-21")
 
